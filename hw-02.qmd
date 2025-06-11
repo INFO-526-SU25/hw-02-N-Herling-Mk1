@@ -1,30 +1,253 @@
 ---
 title: "HW 02"
-author: "INSERT YOUR NAME HERE"
+author: "Nathan Herling"
+date: "2025-06-13"
+_due: "Friday-June-13-2025"   
 format: 
   html:
     embed-resources: true
 toc: true
+#custom field '_due', 
+#if you want to show in the document:**Due Date:** {{_due}}
 ---
 
+## 0 - Setup
+
+```{r setup, echo=FALSE}
+#--------------------->
+#################
+# Package Setup #
+#################
+#Check if pacman [package manager] is installed, if not install it.
+#throw [FYI] alert either way.
+if (!requireNamespace("pacman", quietly = TRUE)) {
+  message("Installing 'pacman' (not found locally)...")
+  install.packages("pacman")
+} else {
+  message("[FYI]\n'pacman' already installed — skipping install.")
+}
+# use this line for installing/loading
+# pacman::p_load()
+# - packages to load stored in a variable (vector)
+pkgs <- c(
+  "tidyverse",
+  "glue",
+  "scales",
+  "lubridate",
+  "patchwork",
+  "ggh4x",
+  "ggrepel",
+  "openintro",
+  "ggridges",
+  "dsbox",
+  "janitor"
+)
+# - load from the character array/vector
+pacman::p_load(char=pkgs)
+
+# - install tidyverse/dsbox directly from Git Hub
+# - this allows for the possible need to install on a repo. pull.
+# - and, if it's already installed just thorw an alert.
+if (!requireNamespace("dsbox", quietly = TRUE)) {
+  message("Installing 'dsbox' from GitHub (not found locally)...")
+  suppressMessages(devtools::install_github("tidyverse/dsbox"))
+} else {
+  message("[FYI]\n'dsbox' already installed — skipping GitHub install.")
+}
+
+# - alert to user packages loaded.
+cat(paste(
+  "The packages loaded:",
+  paste("-", pkgs, collapse = "\n"),
+  sep = "\n"
+))
+
+#-------------------------->
+######################
+# Basic set Theme up #
+######################
+# ---- set theme for ggplot2
+ggplot2::theme_set(ggplot2::theme_minimal(base_size = 14))
+
+# set width of code output
+options(width = 65)
+
+# set figure parameters for knitr
+knitr::opts_chunk$set(
+  fig.width = 7,        # 7" width
+  fig.asp = 0.618,      # the golden ratio
+  fig.retina = 3,       # dpi multiplier for displaying HTML output on retina
+  fig.align = "center", # center align figures
+  dpi = 300             # higher dpi, sharper image
+)
+## ---- end theme set up
+```
 ## 1 - A new day, a new plot, a new geom
+
+> **Question #1**
+> <div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; overflow-wrap:anywhere; word-break:break-word; white-space:normal;">
+> A new day, a new plot, a new geom. The goal of this exercise is to learn about a new type of plot (ridgeline plot) and to learn how to make it. Use the 
+> <code>geom_density_ridges()</code> function from the <code>ggridges</code> package to make a ridge plot of Airbnb review scores of Edinburgh neighborhoods. The neighborhoods should be ordered by their median review scores. The data can be found in the <code>dsbox</code> package, and it’s called <code>edibnb</code>. Also include an interpretation for your visualization. You should review feedback from your Homework 1 to make sure you capture anything you may have missed previously.
+> </div>
+
 
 ```{r}
 #| label: label-me-1
+#| echo: false
+
+# Load the dataset
+data("edibnb")
+
+# Quick look at the structure
+#glimpse(edibnb)
+
+#library(ggridges)
+#?geom_density_ridges
+
+
+# 1. Calculate median review scores by neighborhood
+median_scores <- edibnb |>
+  group_by(neighbourhood) |>
+  summarize(median_score = median(review_scores_rating, na.rm = TRUE)) |>
+  arrange(median_score)
+
+# 2. Reorder neighbourhood factor by median score
+edibnb <- edibnb |>
+  mutate(neighbourhood = factor(neighbourhood, levels = median_scores$neighbourhood))
+
+# 3. Plot ridge plot with geom_density_ridges()
+g1 <- ggplot(edibnb, aes(x = review_scores_rating, y = neighbourhood, fill = neighbourhood)) +
+  geom_density_ridges(alpha = 0.7, scale = 1.2) +
+  scale_x_continuous(name = "Review Scores Rating", limits = c(0, 150)) +
+  labs(
+    title = "Distribution of Airbnb Review Scores by Edinburgh Neighborhood",
+    y = "Neighborhood (ordered by median review score)",
+    fill = "Neighborhood"
+  ) +
+  theme_ridges() +
+  theme(legend.position = "none")
+
+#plot(g1)
+g1
 
 ```
 
 ## 2 - Foreign Connected PACs
-
+<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
+<b>Question #2</b><br>
+<div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:60px;">
+  <strong><br>Put the question here</strong>
+</div>
+</div>
 ```{r}
 #| label: label-me-2
+#| echo: false
+
+# Load and combine data
+list_of_files <- fs::dir_ls(path = "data", regexp = "Foreign Connected PAC")
+
+pac <- read_csv(list_of_files, id = "year") |> 
+  clean_names() |>
+  mutate(year = str_extract(year, "\\d{4}(?=\\.csv$)") |> as.integer()) |>
+  separate(country_of_origin_parent_company,
+           into = c("country", "parent_company"),
+           sep = "/", 
+           fill = "right", 
+           extra = "merge") |>
+  mutate(across(c(dems, repubs), ~ as.numeric(str_replace_all(., "[\\$,]", "")))) |>
+  select(year, pac_name_affiliate, country, parent_company, dems, repubs)
+
+# Summarize totals by year for UK only
+yearly_totals <- pac |>
+  filter(country == "UK") |>
+  pivot_longer(cols = c(dems, repubs), names_to = "party", values_to = "amount") |>
+  filter(!is.na(amount)) |>
+  group_by(year, party) |>
+  summarise(amount = sum(amount), .groups = "drop")
+
+# Plot
+g2a <- ggplot(yearly_totals, aes(x = year, y = amount, color = party)) +
+  geom_line(size = 1.2) +     # Keep line only
+  # geom_point(size = 2)      # Removed points
+  
+  # Removed geom_text() for labels (still commented out)
+  # geom_text(aes(label = scales::dollar(amount, scale = 1e-6, suffix = "M")), 
+  #           vjust = -0.5, size = 3.5, show.legend = FALSE) +
+  
+  scale_y_continuous(
+    name = "Total amount",
+    labels = label_dollar(scale = 1e-6, suffix = "M")
+  ) +
+  
+  scale_x_continuous(
+    name = "Year",
+    breaks = scales::pretty_breaks()
+  ) +
+  
+  scale_color_manual(
+    values = c("dems" = "blue", "repubs" = "red"),
+    labels = c("Democrats", "Republicans"),
+    name = NULL
+  ) +
+  
+  labs(title = "Contributions to US political parties from UK-connected PACs") +
+  
+  theme_minimal(base_size = 14) +
+  
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    
+    # Axis titles: tweak so they stay visible
+    legend.position = c(0.9, 0.15),
+    axis.title.x = element_text(hjust = 0),
+    axis.title.y = element_text(hjust = 0),
+    
+    legend.justification = c("right", "bottom"),
+    legend.background = element_rect(fill = scales::alpha("white", 0.8), color = NA),
+    legend.box.background = element_rect(color = "black"),
+    legend.box.margin = margin(6, 6, 6, 6)
+  )
+
+print(g2a)
+
 
 ```
 
 ## 3 - Median housing prices in the US
+<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
+<b>Question #3</b><br>
+<div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:60px;">
+  <strong><br>Put the question here</strong>
+</div>
+</div>
+```{r}
+#| label: label-me-3
+#| echo: false
+
+```
 
 
 ## 4 - Expect More. Plot More.
+<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
+<b>Question #4</b><br>
+<div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:60px;">
+  <strong><br>Put the question here</strong>
+</div>
+</div>
+```{r}
+#| label: label-me-4
+#| echo: false
 
-
+```
 ## 5 - Mirror, mirror on the wall, who’s the ugliest of them all?
+<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
+<b>Question #5</b><br>
+<div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:60px;">
+  <strong><br>Put the question here</strong>
+</div>
+</div>
+```{r}
+#| label: label-me-5
+#| echo: false
+
+```
