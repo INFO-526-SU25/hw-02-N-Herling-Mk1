@@ -40,8 +40,13 @@ pkgs <- c(
   "openintro",
   "ggridges",
   "dsbox",
-  "janitor"
+  "janitor",
+  "here",
+  "knitr",
+  "ggthemes",
+  "ggplot2"
 )
+
 # - load from the character array/vector
 pacman::p_load(char=pkgs)
 
@@ -95,39 +100,172 @@ knitr::opts_chunk$set(
 #| label: label-me-1
 #| echo: false
 
-# Load the dataset
-data("edibnb")
+# =======================================
+# Diagnostics Summary Table Preparation
+# =======================================
 
-# Quick look at the structure
-#glimpse(edibnb)
+# Data Type
+data_type <- class(edibnb$review_scores_rating)
 
-#library(ggridges)
-#?geom_density_ridges
+# Summary Stats
+summary_stats <- summary(edibnb$review_scores_rating)
 
+# Missing values
+missing_count <- sum(is.na(edibnb$review_scores_rating))
 
-# 1. Calculate median review scores by neighborhood
-median_scores <- edibnb |>
+# IQR and Outlier Detection
+q1 <- quantile(edibnb$review_scores_rating, 0.25, na.rm = TRUE)
+q3 <- quantile(edibnb$review_scores_rating, 0.75, na.rm = TRUE)
+iqr <- q3 - q1
+lower_bound <- q1 - 1.5 * iqr
+upper_bound <- q3 + 1.5 * iqr
+
+outliers <- edibnb$review_scores_rating[!is.na(edibnb$review_scores_rating) &
+                                          (edibnb$review_scores_rating < lower_bound |
+                                           edibnb$review_scores_rating > upper_bound)]
+
+# Construct a table of key diagnostics
+diagnostics_table <- tibble::tibble(
+  Metric = c(
+    "Data Type",
+    "Min", "1st Quartile", "Median", "Mean", "3rd Quartile", "Max",
+    "Missing Values",
+    "IQR", "Lower Outlier Bound", "Upper Outlier Bound", "Outlier Count"
+  ),
+  Value = c(
+    data_type,
+    summary_stats[["Min."]],
+    summary_stats[["1st Qu."]],
+    summary_stats[["Median"]],
+    summary_stats[["Mean"]],
+    summary_stats[["3rd Qu."]],
+    summary_stats[["Max."]],
+    missing_count,
+    iqr,
+    lower_bound,
+    upper_bound,
+    length(outliers)
+  )
+)
+
+# Print the diagnostics table with styled caption (for HTML)
+knitr::kable(
+  diagnostics_table,
+  caption = "<span style='font-weight:bold; font-size:1.2em;'>Table 1. Diagnostic Summary for <code>review_scores_rating</code> (edibnb data set)</span>"
+)
+
+# =======================================
+# Visualization: Ridge Plot by Neighborhood
+# =======================================
+
+# Filter out rows with NA in neighbourhood or review_scores_rating
+edibnb_clean <- edibnb |>
+  filter(!is.na(neighbourhood), !is.na(review_scores_rating))
+
+# Calculate median review scores by neighborhood
+median_scores <- edibnb_clean |>
   group_by(neighbourhood) |>
   summarize(median_score = median(review_scores_rating, na.rm = TRUE)) |>
   arrange(median_score)
 
-# 2. Reorder neighbourhood factor by median score
-edibnb <- edibnb |>
+# Reorder neighborhoods by median score
+edibnb_clean <- edibnb_clean |>
   mutate(neighbourhood = factor(neighbourhood, levels = median_scores$neighbourhood))
 
-# 3. Plot ridge plot with geom_density_ridges()
-g1 <- ggplot(edibnb, aes(x = review_scores_rating, y = neighbourhood, fill = neighbourhood)) +
-  geom_density_ridges(alpha = 0.7, scale = 1.2) +
+# ==== New: Calculate mean review scores for each neighborhood (for annotation) ====
+mean_scores <- edibnb_clean |>
+  group_by(neighbourhood) |>
+  summarize(mean_score = mean(review_scores_rating, na.rm = TRUE))
+
+# ==== Modified plot: add geom_text for mean scores offset to the right ====
+# Create a named vector of colors for neighborhoods
+neighborhood_colors <- setNames(viridis::viridis(length(levels(edibnb_clean$neighbourhood))), levels(edibnb_clean$neighbourhood))
+
+# Get the first and last neighborhood (lowest & highest median)
+low_neigh <- levels(edibnb_clean$neighbourhood)[1]
+high_neigh <- levels(edibnb_clean$neighbourhood)[length(levels(edibnb_clean$neighbourhood))]
+
+# Maximum x-position for annotation
+max_annot_x <- max(mean_scores$mean_score, na.rm = TRUE) + 25
+
+
+g1 <- ggplot(edibnb_clean, aes(x = review_scores_rating, y = neighbourhood)) +
+  geom_density_ridges(
+    aes(color = neighbourhood),
+    fill = "cornsilk4",
+    alpha = 0.7,
+    scale = 1.2,
+    show.legend = FALSE    # 🔧 Hide neighborhood legend entries only here
+  ) +
+  geom_point(
+    data = mean_scores,
+    aes(x = mean_score, y = neighbourhood, color = "Mean Score"),
+    size = 3,
+    shape = 18
+  ) +
+  geom_segment(
+    data = mean_scores,
+    aes(
+      x = mean_score, 
+      xend = mean_score + 20,
+      y = neighbourhood,
+      yend = as.numeric(neighbourhood) + 0.5
+    ),
+    color = "black",
+    linewidth = 0.3
+  ) +
+  ggrepel::geom_text_repel(
+    data = mean_scores,
+    aes(
+      x = mean_score + 20,
+      y = as.numeric(neighbourhood) + 0.5,
+      label = round(mean_score, 1)
+    ),
+    hjust = 0,
+    size = 3.2,
+    color = "black",
+    nudge_y = 0.15,
+    segment.color = NA,
+    direction = "y",
+    box.padding = 0.3,
+    point.padding = 0.5,
+    show.legend = FALSE
+  ) +
+
+# 🔧 NEW: Annotations for Low and High Median neighborhoods
+# Add annotations for low and high median
+  annotate("text",
+           x = max_annot_x,
+           y = 1.5,
+           label = "Low",
+           hjust = -1,
+           size = 5,
+           color = neighborhood_colors[[low_neigh]]) +
+  annotate("text",
+           x = max_annot_x,
+           y = length(levels(edibnb_clean$neighbourhood))+0.5,
+           label = "High",
+           hjust = -1,
+           size = 5,
+           color = neighborhood_colors[[high_neigh]]) +
+
   scale_x_continuous(name = "Review Scores Rating", limits = c(0, 150)) +
+  scale_color_manual(
+    name = "Legend",
+    values = c(neighborhood_colors, "Mean Score" = "black"),
+    breaks = "Mean Score",
+    labels = "Mean Score"
+  ) +
   labs(
     title = "Distribution of Airbnb Review Scores by Edinburgh Neighborhood",
-    y = "Neighborhood (ordered by median review score)",
-    fill = "Neighborhood"
+    y = "Neighborhood"
   ) +
   theme_ridges() +
-  theme(legend.position = "none")
+  theme(
+    legend.position = "right",
+    legend.title = element_text(hjust=0.6)
+  )
 
-#plot(g1)
 g1
 
 ```
