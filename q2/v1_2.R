@@ -1,39 +1,100 @@
 pacman::p_load(here)
 source(here("q1/setup.R"))
 
-#library(dsbox)
-data(package = "dsbox")
+library(fs)
+library(readr)
+library(janitor)
+library(dplyr)
+library(tidyr)
+library(stringr)
+library(ggplot2)
+library(scales)
 
-# Load the dataset
-data("edibnb")
+# ==================
+# Load and Clean Data
+# ==================
 
-# Quick look at the structure
-glimpse(edibnb)
+list_of_files <- fs::dir_ls(path = "data", regexp = "Foreign Connected PAC")
 
-#library(ggridges)
-#?geom_density_ridges
+pac <- read_csv(list_of_files, id = "year") |> 
+  clean_names() |>
+  
+  # Extract year from filename
+  mutate(year = str_extract(year, "\\d{4}(?=\\.csv$)") |> as.integer()) |>
+  
+  # Split 'country_of_origin_parent_company' into 'country' and 'parent_company'
+  separate(country_of_origin_parent_company,
+           into = c("country", "parent_company"),
+           sep = "/", 
+           fill = "right", 
+           extra = "merge") |>
+  
+  # Remove $ and , from numeric columns and convert to numeric
+  mutate(across(c(dems, repubs), ~ as.numeric(str_replace_all(., "[\\$,]", "")))) |>
+  
+  # Keep only needed columns
+  select(year, pac_name_affiliate, country, parent_company, dems, repubs)
 
+# ==================
+# Export Unique Countries to CSV
+# ==================
+# Summarize contributions by country and party
+country_party_totals <- pac |>
+  pivot_longer(cols = c(dems, repubs), names_to = "party", values_to = "amount") |>
+  filter(!is.na(country), !is.na(amount)) |>
+  group_by(country, party) |>
+  summarise(amount = sum(amount), .groups = "drop") |>
+  pivot_wider(names_from = party, values_from = amount, values_fill = 0) |>
+  mutate(total = dems + repubs) |>
+  arrange(desc(total))
 
-# 1. Calculate median review scores by neighborhood
-median_scores <- edibnb |>
-  group_by(neighbourhood) |>
-  summarize(median_score = median(review_scores_rating, na.rm = TRUE)) |>
-  arrange(median_score)
+# Write to CSV
+write_csv(country_party_totals, "country_contributions_summary.csv")
 
-# 2. Reorder neighbourhood factor by median score
-edibnb <- edibnb |>
-  mutate(neighbourhood = factor(neighbourhood, levels = median_scores$neighbourhood))
+# ==================
+# Data Wrangle - Pivot and Summarize
+# ==================
 
-# 3. Plot ridge plot with geom_density_ridges()
-g1 <- ggplot(edibnb, aes(x = review_scores_rating, y = neighbourhood, fill = neighbourhood)) +
-  geom_density_ridges(alpha = 0.7, scale = 1.2) +
-  scale_x_continuous(name = "Review Scores Rating", limits = c(0, 150)) +
-  labs(
-    title = "Distribution of Airbnb Review Scores by Edinburgh Neighborhood",
-    y = "Neighborhood (ordered by median review score)",
-    fill = "Neighborhood"
+pac_long <- pac |>
+  pivot_longer(
+    cols = c(dems, repubs),
+    names_to = "party",
+    values_to = "amount"
+  ) |>
+  mutate(party = recode(party,
+                        "dems" = "Democrat",
+                        "repubs" = "Republican"))
+
+yearly_totals <- pac_long |>
+  filter(country == "UK", !is.na(amount)) |>
+  group_by(year, party) |>
+  summarise(amount = sum(amount), .groups = "drop")
+
+# ==================
+# Create the Plot
+# ==================
+
+g2a <- ggplot(yearly_totals, aes(x = year, y = amount, color = party)) +
+  geom_line(linewidth = 1.2) +
+  scale_y_continuous(
+    name = "Total amount",
+    labels = label_dollar(scale = 1e-6, suffix = "M")
   ) +
-  theme_ridges() +
-  theme(legend.position = "none")
+  scale_x_continuous(
+    name = "Year",
+    breaks = scales::pretty_breaks()
+  ) +
+  scale_color_manual(
+    values = c("Democrat" = "blue", "Republican" = "red"),
+    labels = c("Democrat", "Republican"),
+    name = "Party"
+  ) +
+  labs(title = "Contributions to US political parties from UK-connected PACs") +
+  theme(
+    legend.position = c(0.9, 0.15),
+    axis.title.x = element_text(hjust = 0),
+    axis.title.y = element_text(hjust = 0)
+  )
 
-plot(g1)
+# Show the plot
+print(g2a)

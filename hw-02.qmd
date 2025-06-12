@@ -45,7 +45,8 @@ pkgs <- c(
   "knitr",
   "ggthemes",
   "ggplot2",
-  "kableExtra"
+  "kableExtra",
+  "palmerpenguins"
 )
 
 # - load from the character array/vector
@@ -107,7 +108,7 @@ knitr::opts_chunk$set(
 ## 1 - A new day, a new plot, a new geom
 
 > **Question #1**
-> <div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; overflow-wrap:anywhere; word-break:break-word; white-space:normal;">
+> <div style="background-color:#e0e0e0; margin:15px; padding:10px; border-radius:5px; border:1px solid #16DB65; overflow-wrap:anywhere; word-break:break-word; white-space:normal;">
 > A new day, a new plot, a new geom. The goal of this exercise is to learn about a new type of plot (ridgeline plot) and to learn how to make it. Use the 
 > ```geom_density_ridges()``` function from the ```ggridges``` package to make a ridge plot of Airbnb review scores of Edinburgh neighborhoods. The neighborhoods should be ordered by their median review scores. The data can be found in the ```dsbox``` package, and it’s called ```edibnb```. Also include an interpretation for your visualization. You should review feedback from your Homework 1 to make sure you capture anything you may have missed previously.
 > </div>
@@ -116,6 +117,8 @@ knitr::opts_chunk$set(
 ```{r}
 #| label: label-me-1
 #| echo: false
+#| fig-asp: 0.63
+#| fig-width: 7
 
 # =======================================
 # Diagnostics Summary Table Preparation
@@ -306,88 +309,216 @@ g1 <- ggplot(edibnb_clean, aes(x = review_scores_rating, y = neighbourhood)) +
 g1
 
 ```
-<div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
+<div style="background-color:#e0e0e0; margin:15px; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
   <strong><br>Interpretation</strong>
   The graph (`Distribution of Airbnb Review Scores by Edinburgh Neighborhood`) displays the distribution of Airbnb review scores across Edinburgh neighborhoods using ridgeline plots, with each neighborhood’s mean score marked by a diamond. The mean review scores are generally high, ranging from about 93.9 to 95.9. Some neighborhoods, like Morningside and Bruntsfield, show slightly higher average scores. The variation in score spread highlights differences in review consistency between neighborhoods, making it easier to compare where listings tend to receive better feedback.
 </div>
 ## 2 - Foreign Connected PACs
-<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
-<b>Question #2</b><br>
-<div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:60px;">
-  <strong><br>Put the question here</strong>
+<div style="background-color:#f0f0f0; margin:15px; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
+<b>Question #2a</b><br>
+<div style="background-color:#e0e0e0; padding:2px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
+  <strong><br>Contributions to US political parties from UK-connected PACs</strong>
 </div>
 </div>
 ```{r}
-#| label: label-me-2
+#| label: label-me-2a
 #| echo: false
 #| fig-width: 10
 
 
 # Suppress readr column type messages
 options(readr.show_col_types = FALSE) 
+# ==================
 # Load and combine data
+# ==================
+
 list_of_files <- fs::dir_ls(path = "data", regexp = "Foreign Connected PAC")
 
 pac <- read_csv(list_of_files, id = "year") |> 
   clean_names() |>
+  
+  # Extract year from filename
   mutate(year = str_extract(year, "\\d{4}(?=\\.csv$)") |> as.integer()) |>
+  
+  # Split 'country_of_origin_parent_company' into 'country' and 'parent_company'
   separate(country_of_origin_parent_company,
            into = c("country", "parent_company"),
            sep = "/", 
            fill = "right", 
            extra = "merge") |>
+  
+  # Remove $ and , from numeric columns and convert to numeric
   mutate(across(c(dems, repubs), ~ as.numeric(str_replace_all(., "[\\$,]", "")))) |>
+  
+  # Keep only needed columns
   select(year, pac_name_affiliate, country, parent_company, dems, repubs)
 
-# Summarize totals by year for UK only
-yearly_totals <- pac |>
-  filter(country == "UK") |>
-  pivot_longer(cols = c(dems, repubs), names_to = "party", values_to = "amount") |>
-  filter(!is.na(amount)) |>
+
+# ==================
+# Data Wrangle - Pivot and Summarize
+# ==================
+
+# Pivot data to longer format: create 'party' and 'amount' columns
+pac_long <- pac |>
+  pivot_longer(
+    cols = c(dems, repubs),
+    names_to = "party",
+    values_to = "amount"
+  ) |>
+  
+  # Replace party values with readable labels
+  mutate(party = recode(party,
+                        "dems" = "Democrat",
+                        "repubs" = "Republican"))
+
+# Filter for UK-origin PACs and remove NA values in amount
+yearly_totals <- pac_long |>
+  filter(country == "UK", !is.na(amount)) |>
+  
+  # Summarize total contributions by year and party
   group_by(year, party) |>
   summarise(amount = sum(amount), .groups = "drop")
 
-# Plot
+
+# ==================
+# Create the Plot
+# ==================
+
 g2a <- ggplot(yearly_totals, aes(x = year, y = amount, color = party)) +
-  geom_line(linewidth = 1.2) +     # Keep line only
-  # geom_point(size = 2)      # Removed points
-  
-  # Removed geom_text() for labels (still commented out)
-  # geom_text(aes(label = scales::dollar(amount, scale = 1e-6, suffix = "M")), 
-  #           vjust = -0.5, size = 3.5, show.legend = FALSE) +
-  
+  geom_line(linewidth = 1.2) +  # Keep line only
+
   scale_y_continuous(
     name = "Total amount",
     labels = label_dollar(scale = 1e-6, suffix = "M")
   ) +
-  
+
   scale_x_continuous(
     name = "Year",
     breaks = scales::pretty_breaks()
   ) +
-  
+
   scale_color_manual(
-    values = c("dems" = "blue", "repubs" = "red"),
-    labels = c("Democrats", "Republicans"),
-    name = "Party"                          # - sets name on legend
+    values = c("Democrat" = "blue", "Republican" = "red"),
+    labels = c("Democrat", "Republican"),
+    name = "Party"
   ) +
-  
+
   labs(title = "Contributions to US political parties from UK-connected PACs") +
-  
+
   theme(
-    legend.position = c(0.9, 0.15),            # - getting a warning but if I do as requested, 
-    axis.title.x = element_text(hjust = 0),    # - legend moves outside plot.
+    legend.position.inside = c(0.9, 0.15),           # This may cause clipping warnings
+    axis.title.x = element_text(hjust = 0),   # Align X-axis label left
+    axis.title.y = element_text(hjust = 0)    # Align Y-axis label left
+  )
+
+# Show the plot
+g2a
+
+```
+<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
+<b>Question #2b</b><br>
+<div style="background-color:#e0e0e0; padding:2px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
+  <strong><br>Contributions to US political parties from Switzerland-connected PACs</strong>
+</div>
+</div>
+
+
+```{r}
+#| label: label-me-2b
+#| echo: false
+#| fig-width: 10
+
+# - list_of_files already exists from above.
+pac_2 <- read_csv(list_of_files, id = "year") |> 
+  clean_names() |>
+  
+  # Extract year from filename
+  mutate(year = str_extract(year, "\\d{4}(?=\\.csv$)") |> as.integer()) |>
+  
+  # Split 'country_of_origin_parent_company' into 'country' and 'parent_company'
+  separate(country_of_origin_parent_company,
+           into = c("country", "parent_company"),
+           sep = "/", 
+           fill = "right", 
+           extra = "merge") |>
+  
+  # Remove $ and , from numeric columns and convert to numeric
+  mutate(across(c(dems, repubs), ~ as.numeric(str_replace_all(., "[\\$,]", "")))) |>
+  
+  # Keep only needed columns
+  select(year, pac_name_affiliate, country, parent_company, dems, repubs)
+
+# ==================
+# Export Unique Countries to CSV
+# ==================
+# Summarize contributions by country and party
+# country_party_totals <- pac_2 |>
+#   pivot_longer(cols = c(dems, repubs), names_to = "party", values_to = "amount") |>
+#   filter(!is.na(country), !is.na(amount)) |>
+#   group_by(country, party) |>
+#   summarise(amount = sum(amount), .groups = "drop") |>
+#   pivot_wider(names_from = party, values_from = amount, values_fill = 0) |>
+#   mutate(total = dems + repubs) |>
+#   arrange(desc(total))
+# 
+# # Write to CSV
+# write_csv(country_party_totals, "country_contributions_summary.csv")
+
+# ==================
+# Data Wrangle - Pivot and Summarize
+# ==================
+
+pac_long <- pac_2 |>
+  pivot_longer(
+    cols = c(dems, repubs),
+    names_to = "party",
+    values_to = "amount"
+  ) |>
+  mutate(party = recode(party,
+                        "dems" = "Democrat",
+                        "repubs" = "Republican"))
+
+yearly_totals <- pac_long |>
+  filter(country == "Switzerland", !is.na(amount)) |>
+  group_by(year, party) |>
+  summarise(amount = sum(amount), .groups = "drop")
+
+# ==================
+# Create the Plot
+# ==================
+
+g2a <- ggplot(yearly_totals, aes(x = year, y = amount, color = party)) +
+  geom_line(linewidth = 1.2) +
+  scale_y_continuous(
+    name = "Total amount",
+    labels = label_dollar(scale = 1e-6, suffix = "M")
+  ) +
+  scale_x_continuous(
+    name = "Year",
+    breaks = scales::pretty_breaks()
+  ) +
+  scale_color_manual(
+    values = c("Democrat" = "blue", "Republican" = "red"),
+    labels = c("Democrat", "Republican"),
+    name = "Party"
+  ) +
+  labs(title = "Contributions to US political parties from Switzerland-connected PACs") +
+  theme(
+    legend.position.inside = c(0.9, 0.15),
+    axis.title.x = element_text(hjust = 0),
     axis.title.y = element_text(hjust = 0)
   )
 
-print(g2a)
+# - Show the plot
+# print(g2a)
+g2a
 
 ```
 
 ## 3 - Median housing prices in the US
 <div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
 <b>Question #3</b><br>
-<div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:60px;">
+<div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
   <strong><br>Put the question here</strong>
 </div>
 </div>
@@ -399,54 +530,246 @@ print(g2a)
 
 
 ## 4 - Expect More. Plot More.
-<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
+<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB; height:auto">
 <b>Question #4</b><br>
-<div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:60px;">
-  <strong><br>Recreate the Target LOGO</strong>
+<div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
+  <strong><br>Recreate the Target LOGO.<br>Describe steps..<br>(see code comments)</strong>
+  
 </div>
 </div>
+
 ```{r}
 #| label: label-me-4
 #| echo: false
 
 library(ggplot2)
-library(ggforce)  # for geom_circle()
+library(ggforce)
 
-# Define circles for the Target logo
+# Define Target's signature red color
+target_red <- "#e82118"
+
+# Create a data frame for the concentric circles (outer red ring and inner white ring)
 circles <- data.frame(
-  x0 = 0, y0 = 0,
-  r = c(1, 0.7),
-  fill = c("red", "white")
+  x0 = 0, y0 = 0,                    # Center of both circles
+  r = c(1, 0.7),                     # Radii for the outer red ring and inner white ring
+  fill = c(target_red, "white")     # Fill colors for each ring
 )
 
-# Plot the logo + "TARGET" + ®
+# Construct the plot
 g1 <- ggplot() +
-  # Draw the rings
-  geom_circle(data = circles, aes(x0 = x0, y0 = y0, r = r, fill = fill), color = NA) + 
-  # Solid center circle
-  geom_point(aes(x = 0, y = 0), shape = 21, size = 30, fill = "red") +  
-  # Add the word 'TARGET' below the logo
-  annotate("text", x = 0, y = -1.4, label = "TARGET", color = "red", size = 10, fontface = "bold") +
-  # Add the ® symbol offset to the bottom right of 'TARGET'
-  annotate("text", x = 0.60, y = -1.50, label = "®", color = "red", size = 8) +
-  # Style the plot
+  # Draw the red and white rings (two concentric circles)
+  geom_circle(data = circles, aes(x0 = x0, y0 = y0, r = r, fill = fill), color = NA) +
+  
+  # Draw the solid inner red circle (target bullseye center)
+  geom_circle(aes(x0 = 0, y0 = 0, r = 0.3), fill = target_red, color = NA) +
+  
+  # Add the text "TARGET" beneath the bullseye
+  annotate("text", x = 0, y = -1.4, label = "TARGET", color = target_red, size = 10, fontface = "bold") +
+  
+  # Add the registered trademark symbol next to "TARGET"
+  annotate("text", x = 0.6, y = -1.52, label = "®", color = target_red, size = 8) +
+  
+  # Use fill colors as provided (don't map them to a color scale)
   scale_fill_identity() +
+  
+  # Ensure equal aspect ratio for x and y (perfect circles)
   coord_fixed() +
+  
+  # Remove all background, axes, and gridlines
   theme_void()
 
+# Render the plot
 plot(g1)
+
+
 
 
 ```
 ## 5 - Mirror, mirror on the wall, who’s the ugliest of them all?
 <div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
 <b>Question #5</b><br>
-<div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:60px;">
-  <strong><br>Put the question here</strong>
+<div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
+  <strong><br>Mirror, mirror on the wall, who’s the ugliest of them all? Make a plot of the variables in the penguins dataset from the palmerpenguins package. Your plot should use at least two variables, but more is fine too. First, make the plot using the default theme and color scales. Then, update the plot to be as ugly as possible. You will probably want to play around with theme options, colors, fonts, etc. The ultimate goal is the ugliest possible plot, and the sky is the limit!</strong>
 </div>
 </div>
 ```{r}
-#| label: label-me-5
+#| label: label-me-5a
 #| echo: false
+
+# Load necessary libraries
+
+# Remove rows with missing values
+penguins_clean <- na.omit(penguins)
+
+# Create scatter plot: bill length vs flipper length, colored by species
+g5a <- ggplot(data = penguins_clean, aes(x = bill_length_mm, y = flipper_length_mm, color = species)) +
+  geom_point() +
+  labs(
+    title = "Bill Length vs Flipper Length by Species",
+    x = "Bill Length (mm)",
+    y = "Flipper Length (mm)"
+  )
+
+# - show it
+g5a
+
+```
+
+```{r}
+#| label: label-me-5b
+#| echo: false
+
+# - penguins already loaded..
+# penguins_clean <- na.omit(penguins)
+
+# library(plotly)
+# # Create scatter plot: bill length vs flipper length, colored by species
+# p <- plot_ly(
+#   data = penguins_clean,
+#   x = ~bill_length_mm,
+#   y = ~flipper_length_mm,
+#   z = ~body_mass_g,
+#   color = ~species,
+#   colors = c("darkorange", "dodgerblue", "forestgreen"),
+#   type = "scatter3d",
+#   mode = "markers",
+#   marker = list(size = 5)
+# )
+# 
+# p <- layout(
+#   p,
+#   scene = list(
+#     xaxis = list(title = "Bill Length (mm)"),
+#     yaxis = list(title = "Flipper Length (mm)"),
+#     zaxis = list(title = "Body Mass (g)")
+#   ),
+#   title = "3D Scatter Plot: Bill Length vs Flipper Length vs Body Mass"
+# )
+# 
+# p
+
+library(plotly)
+library(palmerpenguins)
+library(plotly)
+library(palmerpenguins)
+
+penguins_clean <- na.omit(penguins)
+
+normalize <- function(x) (x - min(x)) / (max(x) - min(x))
+
+x_norm <- normalize(penguins_clean$bill_length_mm)
+y_norm <- normalize(penguins_clean$flipper_length_mm)
+z_norm <- normalize(penguins_clean$body_mass_g)
+
+theta <- 2 * pi * x_norm
+phi <- pi * y_norm
+r <- 1 + 0.3 * (z_norm - 0.5)
+
+x_sphere <- r * sin(phi) * cos(theta)
+y_sphere <- r * sin(phi) * sin(theta)
+z_sphere <- r * cos(phi)
+
+sphere_res <- 30
+sphere_theta <- seq(0, 2*pi, length.out = sphere_res)
+sphere_phi <- seq(0, pi, length.out = sphere_res)
+
+mesh_coords <- expand.grid(theta = sphere_theta, phi = sphere_phi)
+mesh_x <- sin(mesh_coords$phi) * cos(mesh_coords$theta)
+mesh_y <- sin(mesh_coords$phi) * sin(mesh_coords$theta)
+mesh_z <- cos(mesh_coords$phi)
+
+mesh <- list(
+  type = 'mesh3d',
+  x = mesh_x,
+  y = mesh_y,
+  z = mesh_z,
+  alphahull = 20,
+  opacity = 0.2,
+  color = 'lightgrey',
+  name = 'sphere'
+)
+
+angles <- seq(0, 2 * pi, length.out = 100)
+
+frames <- lapply(seq_along(angles), function(i) {
+  angle <- angles[i]
+  list(
+    name = as.character(i),
+    layout = list(
+      scene = list(
+        camera = list(
+          eye = list(
+            x = 2 * cos(angle),
+            y = 2 * sin(angle),
+            z = 0.7
+          )
+        )
+      )
+    )
+  )
+})
+
+p <- plot_ly() %>%
+  add_trace(
+    type = "scatter3d",
+    mode = "markers",
+    x = x_sphere,
+    y = y_sphere,
+    z = z_sphere,
+    color = penguins_clean$species,
+    colors = c("darkorange", "dodgerblue", "forestgreen"),
+    marker = list(size = 4)
+  ) %>%
+  add_trace(mesh) %>%
+  layout(
+    scene = list(
+      xaxis = list(title = "X", range = c(-1.5, 1.5)),
+      yaxis = list(title = "Y", range = c(-1.5, 1.5)),
+      zaxis = list(title = "Z", range = c(-1.5, 1.5)),
+      aspectmode = "cube",
+      camera = list(
+        eye = list(x = 2, y = 0, z = 0.7)  # initial camera position
+      )
+    ),
+    title = "Penguin Data on Continuously Rotating Sphere",
+    updatemenus = list(
+      list(
+        type = "buttons",
+        buttons = list(
+          list(
+            label = "Play",
+            method = "animate",
+            args = list(NULL, list(frame = list(duration = 50, redraw = TRUE),
+                                   transition = 0,
+                                   fromcurrent = TRUE,
+                                   mode = "immediate"))
+          ),
+          list(
+            label = "Pause",
+            method = "animate",
+            args = list(NULL, list(frame = list(duration = 0, redraw = FALSE),
+                                   mode = "immediate"))
+          )
+        )
+      )
+    )
+  )
+
+# Assign frames explicitly to the plotly object
+p$x$frames <- frames
+
+# Animation options to smooth it out
+p <- p %>%
+  animation_opts(
+    frame = 50,
+    transition = 0,
+    redraw = TRUE,
+    easing = "linear",
+    mode = "immediate"
+  )
+
+p
+
+
 
 ```
