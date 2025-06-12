@@ -44,7 +44,8 @@ pkgs <- c(
   "here",
   "knitr",
   "ggthemes",
-  "ggplot2"
+  "ggplot2",
+  "kableExtra"
 )
 
 # - load from the character array/vector
@@ -61,12 +62,28 @@ if (!requireNamespace("dsbox", quietly = TRUE)) {
 }
 
 # - alert to user packages loaded.
-cat(paste(
-  "The packages loaded:",
-  paste("-", pkgs, collapse = "\n"),
-  sep = "\n"
-))
+# Set number of columns (adjustable)
+n_cols <- 4
 
+# Add * to each package name
+pkgs <- paste0("* ", pkgs)
+
+# Calculate number of rows based on total packages
+n_rows <- ceiling(length(pkgs) / n_cols)
+
+# Pad with empty strings to complete grid
+pkgs_padded <- c(pkgs, rep("", n_rows * n_cols - length(pkgs)))
+
+# Create matrix (fill by row)
+pkg_matrix <- matrix(pkgs_padded, nrow = n_rows, byrow = TRUE)
+
+# Print header
+cat("The packages loaded:")
+
+# Loop and print each row (use invisible to suppress NULL)
+invisible(apply(pkg_matrix, 1, function(row) {
+  cat(paste(format(row, width = 22), collapse = ""), "\n")
+}))
 #-------------------------->
 ######################
 # Basic set Theme up #
@@ -107,13 +124,16 @@ knitr::opts_chunk$set(
 # Data Type
 data_type <- class(edibnb$review_scores_rating)
 
-# Summary Stats
+# - info on the DSet
+#print(help("edibnb"))
+
+# - Summary Stats
 summary_stats <- summary(edibnb$review_scores_rating)
 
-# Missing values
+# - Missing values
 missing_count <- sum(is.na(edibnb$review_scores_rating))
 
-# IQR and Outlier Detection
+# - IQR and Outlier Detection
 q1 <- quantile(edibnb$review_scores_rating, 0.25, na.rm = TRUE)
 q3 <- quantile(edibnb$review_scores_rating, 0.75, na.rm = TRUE)
 iqr <- q3 - q1
@@ -124,7 +144,7 @@ outliers <- edibnb$review_scores_rating[!is.na(edibnb$review_scores_rating) &
                                           (edibnb$review_scores_rating < lower_bound |
                                            edibnb$review_scores_rating > upper_bound)]
 
-# Construct a table of key diagnostics
+# - Construct a table of key diagnostics
 diagnostics_table <- tibble::tibble(
   Metric = c(
     "Data Type",
@@ -148,27 +168,33 @@ diagnostics_table <- tibble::tibble(
   )
 )
 
-# Print the diagnostics table with styled caption (for HTML)
-knitr::kable(
-  diagnostics_table,
-  caption = "<span style='font-weight:bold; font-size:1.2em;'>Table 1. Diagnostic Summary for <code>review_scores_rating</code> (edibnb data set)</span>"
-)
+# Print the diagnostics table with styled caption and highlighted row
+diagnostics_table |>
+  kable(
+    caption = "<span style='font-weight:bold; font-size:1.2em;'>Table 1. Diagnostic Summary for <code>review_scores_rating</code> (edibnb data set)</span>",
+    escape = FALSE
+  ) |>
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) |>
+  row_spec(
+    which(diagnostics_table$Metric == "Missing Values"),   # 🔧 Highlight "Missing Values" row
+    background = "#fff9c4"  # 🔧 Light yellow
+  )
 
 # =======================================
 # Visualization: Ridge Plot by Neighborhood
 # =======================================
 
-# Filter out rows with NA in neighbourhood or review_scores_rating
+# - Filter out rows with NA in neighbourhood or review_scores_rating
 edibnb_clean <- edibnb |>
   filter(!is.na(neighbourhood), !is.na(review_scores_rating))
 
-# Calculate median review scores by neighborhood
+# - Calculate median review scores by neighborhood
 median_scores <- edibnb_clean |>
   group_by(neighbourhood) |>
   summarize(median_score = median(review_scores_rating, na.rm = TRUE)) |>
   arrange(median_score)
 
-# Reorder neighborhoods by median score
+# - Reorder neighborhoods by median score
 edibnb_clean <- edibnb_clean |>
   mutate(neighbourhood = factor(neighbourhood, levels = median_scores$neighbourhood))
 
@@ -181,21 +207,23 @@ mean_scores <- edibnb_clean |>
 # Create a named vector of colors for neighborhoods
 neighborhood_colors <- setNames(viridis::viridis(length(levels(edibnb_clean$neighbourhood))), levels(edibnb_clean$neighbourhood))
 
-# Get the first and last neighborhood (lowest & highest median)
+# - Get the first and last neighborhood (lowest & highest median)
 low_neigh <- levels(edibnb_clean$neighbourhood)[1]
 high_neigh <- levels(edibnb_clean$neighbourhood)[length(levels(edibnb_clean$neighbourhood))]
 
-# Maximum x-position for annotation
+# - Maximum x-position for annotation
 max_annot_x <- max(mean_scores$mean_score, na.rm = TRUE) + 25
 
-
+#===============
+# Make the plot
+#===============
 g1 <- ggplot(edibnb_clean, aes(x = review_scores_rating, y = neighbourhood)) +
   geom_density_ridges(
     aes(color = neighbourhood),
     fill = "cornsilk4",
     alpha = 0.7,
     scale = 1.2,
-    show.legend = FALSE    # 🔧 Hide neighborhood legend entries only here
+    show.legend = FALSE
   ) +
   geom_point(
     data = mean_scores,
@@ -206,7 +234,7 @@ g1 <- ggplot(edibnb_clean, aes(x = review_scores_rating, y = neighbourhood)) +
   geom_segment(
     data = mean_scores,
     aes(
-      x = mean_score, 
+      x = mean_score,
       xend = mean_score + 20,
       y = neighbourhood,
       yend = as.numeric(neighbourhood) + 0.5
@@ -231,24 +259,24 @@ g1 <- ggplot(edibnb_clean, aes(x = review_scores_rating, y = neighbourhood)) +
     point.padding = 0.5,
     show.legend = FALSE
   ) +
-
-# 🔧 NEW: Annotations for Low and High Median neighborhoods
-# Add annotations for low and high median
-  annotate("text",
-           x = max_annot_x,
-           y = 1.5,
-           label = "Low",
-           hjust = -1,
-           size = 5,
-           color = neighborhood_colors[[low_neigh]]) +
-  annotate("text",
-           x = max_annot_x,
-           y = length(levels(edibnb_clean$neighbourhood))+0.5,
-           label = "High",
-           hjust = -1,
-           size = 5,
-           color = neighborhood_colors[[high_neigh]]) +
-
+  annotate(             # - put an annotation next to the 'low' value
+    "text",
+    x = max_annot_x,
+    y = 1.5,
+    label = "Low",
+    hjust = -1,
+    size = 5,
+    color = neighborhood_colors[[low_neigh]]
+  ) +
+  annotate(             # - put an annotation next to the 'high' value
+    "text",
+    x = max_annot_x,
+    y = length(levels(edibnb_clean$neighbourhood)) + 0.5,
+    label = "High",
+    hjust = -1,
+    size = 5,
+    color = neighborhood_colors[[high_neigh]]
+  ) +
   scale_x_continuous(name = "Review Scores Rating", limits = c(0, 150)) +
   scale_color_manual(
     name = "Legend",
@@ -257,19 +285,31 @@ g1 <- ggplot(edibnb_clean, aes(x = review_scores_rating, y = neighbourhood)) +
     labels = "Mean Score"
   ) +
   labs(
-    title = "Distribution of Airbnb Review Scores by Edinburgh Neighborhood",
-    y = "Neighborhood"
-  ) +
+    title = "Distribution of Airbnb Review Scores by Edinburgh Neighborhood\n", 
+    y = "Neighborhood",
+    caption = "Source: Inside Airbnb via Kaggle (data from June 2019)") +
   theme_ridges() +
   theme(
     legend.position = "right",
-    legend.title = element_text(hjust=0.6)
-  )
+    legend.title = element_text(hjust = 0.6),
+    axis.title.y = element_text(vjust = 1.5, hjust = 0.5),
+    plot.title = element_text(hjust = 0.5),
+    axis.title.x = element_text(hjust = 0.5),
+    plot.caption = element_text(              # - stylizing the caption
+      hjust = 0.5,    # right align
+      color = "grey50",  # lighter grey
+      size = 8
+     )
+  ) 
 
+# - show the graph
 g1
 
 ```
-
+<div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
+  <strong><br>Interpretation</strong>
+  The graph (`Distribution of Airbnb Review Scores by Edinburgh Neighborhood`) displays the distribution of Airbnb review scores across Edinburgh neighborhoods using ridgeline plots, with each neighborhood’s mean score marked by a diamond. The mean review scores are generally high, ranging from about 93.9 to 95.9. Some neighborhoods, like Morningside and Bruntsfield, show slightly higher average scores. The variation in score spread highlights differences in review consistency between neighborhoods, making it easier to compare where listings tend to receive better feedback.
+</div>
 ## 2 - Foreign Connected PACs
 <div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
 <b>Question #2</b><br>

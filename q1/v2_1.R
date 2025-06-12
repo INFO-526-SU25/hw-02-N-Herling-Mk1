@@ -8,6 +8,8 @@ cat("=== Data Diagnostics for `review_scores_rating` ===\n")
 cat("Data Type:\n")
 print(class(edibnb$review_scores_rating))
 
+print(help("edibnb"))
+
 # 2. Summary statistics (range, median, quartiles, etc.)
 cat("\nSummary Statistics:\n")
 print(summary(edibnb$review_scores_rating))
