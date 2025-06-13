@@ -3,7 +3,7 @@ title: "HW 02"
 author: "Nathan Herling"
 date: "2025-06-13"
 _due: "Friday-June-13-2025"   
-format: 
+format:
   html:
     embed-resources: true
 toc: true
@@ -517,17 +517,87 @@ g2a
 
 ## 3 - Median housing prices in the US
 <div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
-<b>Question #3</b><br>
+<b>Question #3a</b><br>
 <div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
   <strong><br>Put the question here</strong>
 </div>
 </div>
+
+
+<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
+<b>Question #3b</b><br>
+<div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
+  <strong><br>Put the question here</strong>
+</div>
+</div>
+
+
 ```{r}
-#| label: label-me-3
+#| label: label-me-3a
 #| echo: false
 
 ```
 
+
+```{r}
+#| label: label-me-3b
+#| echo: false
+
+# Load the median housing data
+median_housing <- read_csv("data/median-housing.csv") |>
+  rename(date = DATE, price = MSPUS) |>
+  mutate(date = ymd(date))  # ✅ CHANGED: Replaced %>% with |>
+
+# Load the recession data
+recessions <- read_csv("data/recessions.csv") |>
+  rename(start = Peak, end = Trough) |>
+  mutate(start = ymd(start), end = ymd(end))  # ✅ CHANGED: Replaced %>% with |>
+
+# Custom y-axis breaks (extend past 400,000 to ensure it shows)
+y_breaks <- seq(40000, 440000, by = 40000)
+
+# ✅ ADDED: Custom x-axis breaks (exclude endpoints)
+x_breaks <- seq(1965, 2020, by = 5) |> paste0("-01-01") |> ymd()
+
+# Create the visualization
+g1 <- ggplot(median_housing, aes(x = date, y = price)) +
+  geom_line(color = "steelblue") +
+  
+  # Recession shading
+  geom_rect(data = recessions, aes(xmin = start, xmax = end, ymin = -Inf, ymax = Inf),
+            inherit.aes = FALSE, fill = "gray", alpha = 0.3) +
+  
+  # ✅ REPLACED: Restrict x-axis and apply custom breaks
+  scale_x_date(
+    breaks = x_breaks,
+    limits = c(ymd("1960-01-01"), ymd("2025-01-01")),
+    date_labels = "%Y"
+  ) +
+  
+  # Custom y-axis breaks and formatted labels
+  scale_y_continuous(
+    breaks = y_breaks, 
+    labels = comma_format(),
+    limits = c(0, 400000),     # ✅ FIXED: Lower limit now 40,000 instead of 0
+    expand = c(0, 0)
+  ) +
+  
+  # Axis labels
+  labs(title = "Median Housing Prices in the US",
+       x = "Date", y = "Dollars") +
+  
+  theme_minimal()
+
+plot(g1)
+
+
+```
+
+```{r}
+#| label: label-me-3c
+#| echo: false
+
+```
 
 ## 4 - Expect More. Plot More.
 <div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB; height:auto">
