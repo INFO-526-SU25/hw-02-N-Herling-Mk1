@@ -47,7 +47,9 @@ pkgs <- c(
   "ggplot2",
   "kableExtra",
   "palmerpenguins",
-  "grid"
+  "grid",
+  "htmltools",
+  "plotly"
 )
 
 # - load from the character array/vector
@@ -977,6 +979,7 @@ plot(g1)
   <strong><br>Mirror, mirror on the wall, who’s the ugliest of them all? Make a plot of the variables in the penguins dataset from the palmerpenguins package. Your plot should use at least two variables, but more is fine too. First, make the plot using the default theme and color scales. Then, update the plot to be as ugly as possible. You will probably want to play around with theme options, colors, fonts, etc. The ultimate goal is the ugliest possible plot, and the sky is the limit!</strong>
 </div>
 </div>
+
 ```{r}
 #| label: label-me-5a
 #| echo: false
@@ -999,162 +1002,77 @@ g5a <- ggplot(data = penguins_clean, aes(x = bill_length_mm, y = flipper_length_
 g5a
 
 ```
+<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB; margin:60px">
+<b>Question #5</b><br>
+<div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
+  <strong><br>The ultimate goal is the ugliest possible plot, and the sky is the limit!<br>
+  Snakes on a plan? No. Penguins on a Sphere!</strong>
+</div>
+</div>
 
 ```{r}
-#| label: label-me-5b
 #| echo: false
+#| label: label-me-5b
 
-# - penguins already loaded..
-# penguins_clean <- na.omit(penguins)
 
-# library(plotly)
-# # Create scatter plot: bill length vs flipper length, colored by species
-# p <- plot_ly(
-#   data = penguins_clean,
-#   x = ~bill_length_mm,
-#   y = ~flipper_length_mm,
-#   z = ~body_mass_g,
-#   color = ~species,
-#   colors = c("darkorange", "dodgerblue", "forestgreen"),
-#   type = "scatter3d",
-#   mode = "markers",
-#   marker = list(size = 5)
-# )
-# 
-# p <- layout(
-#   p,
-#   scene = list(
-#     xaxis = list(title = "Bill Length (mm)"),
-#     yaxis = list(title = "Flipper Length (mm)"),
-#     zaxis = list(title = "Body Mass (g)")
-#   ),
-#   title = "3D Scatter Plot: Bill Length vs Flipper Length vs Body Mass"
-# )
-# 
-# p
-
-library(plotly)
-library(palmerpenguins)
-library(plotly)
-library(palmerpenguins)
-
+# Step 1: Clean the data
 penguins_clean <- na.omit(penguins)
 
-normalize <- function(x) (x - min(x)) / (max(x) - min(x))
-
-x_norm <- normalize(penguins_clean$bill_length_mm)
-y_norm <- normalize(penguins_clean$flipper_length_mm)
-z_norm <- normalize(penguins_clean$body_mass_g)
-
-theta <- 2 * pi * x_norm
-phi <- pi * y_norm
-r <- 1 + 0.3 * (z_norm - 0.5)
-
-x_sphere <- r * sin(phi) * cos(theta)
-y_sphere <- r * sin(phi) * sin(theta)
-z_sphere <- r * cos(phi)
-
-sphere_res <- 30
-sphere_theta <- seq(0, 2*pi, length.out = sphere_res)
-sphere_phi <- seq(0, pi, length.out = sphere_res)
-
-mesh_coords <- expand.grid(theta = sphere_theta, phi = sphere_phi)
-mesh_x <- sin(mesh_coords$phi) * cos(mesh_coords$theta)
-mesh_y <- sin(mesh_coords$phi) * sin(mesh_coords$theta)
-mesh_z <- cos(mesh_coords$phi)
-
-mesh <- list(
-  type = 'mesh3d',
-  x = mesh_x,
-  y = mesh_y,
-  z = mesh_z,
-  alphahull = 20,
-  opacity = 0.2,
-  color = 'lightgrey',
-  name = 'sphere'
-)
-
-angles <- seq(0, 2 * pi, length.out = 100)
-
-frames <- lapply(seq_along(angles), function(i) {
-  angle <- angles[i]
-  list(
-    name = as.character(i),
-    layout = list(
-      scene = list(
-        camera = list(
-          eye = list(
-            x = 2 * cos(angle),
-            y = 2 * sin(angle),
-            z = 0.7
-          )
-        )
-      )
-    )
+# Step 2: Map to spherical coordinates
+# - θ (theta): polar angle (bill length) mapped to [0, π]
+# - φ (phi): azimuthal angle (flipper length) mapped to [0, 2π]
+penguins_sphere <- penguins_clean %>%
+  mutate(
+    theta = rescale(bill_length_mm, to = c(0, pi)),
+    phi = rescale(flipper_length_mm, to = c(0, 2 * pi)),
+    r = 1,
+    x = r * sin(theta) * cos(phi),
+    y = r * sin(theta) * sin(phi),
+    z = r * cos(theta)
   )
-})
 
-p <- plot_ly() %>%
-  add_trace(
-    type = "scatter3d",
-    mode = "markers",
-    x = x_sphere,
-    y = y_sphere,
-    z = z_sphere,
-    color = penguins_clean$species,
-    colors = c("darkorange", "dodgerblue", "forestgreen"),
-    marker = list(size = 4)
-  ) %>%
-  add_trace(mesh) %>%
+# Step 3: Build the 3D scatter plot
+plot_3d <- plot_ly(
+  data = penguins_sphere,
+  x = ~x, y = ~y, z = ~z,
+  type = 'scatter3d',
+  mode = 'markers',
+  color = ~species,
+  colors = c("Adelie" = "red", "Chinstrap" = "green", "Gentoo" = "blue"),
+  marker = list(size = 4)
+) %>%
   layout(
-    scene = list(
-      xaxis = list(title = "X", range = c(-1.5, 1.5)),
-      yaxis = list(title = "Y", range = c(-1.5, 1.5)),
-      zaxis = list(title = "Z", range = c(-1.5, 1.5)),
-      aspectmode = "cube",
-      camera = list(
-        eye = list(x = 2, y = 0, z = 0.7)  # initial camera position
-      )
+    title = list(
+      text = "Plot #2 – Penguins on a Sphere",
+      font = list(size = 25)
     ),
-    title = "Penguin Data on Continuously Rotating Sphere",
-    updatemenus = list(
-      list(
-        type = "buttons",
-        buttons = list(
-          list(
-            label = "Play",
-            method = "animate",
-            args = list(NULL, list(frame = list(duration = 50, redraw = TRUE),
-                                   transition = 0,
-                                   fromcurrent = TRUE,
-                                   mode = "immediate"))
-          ),
-          list(
-            label = "Pause",
-            method = "animate",
-            args = list(NULL, list(frame = list(duration = 0, redraw = FALSE),
-                                   mode = "immediate"))
-          )
-        )
-      )
-    )
+        margin = list(
+      t = 100,  # ← increase top margin here
+      r = 30
+    ),
+    scene = list(
+      xaxis = list(title = "X"),
+      yaxis = list(title = "Y"),
+      zaxis = list(title = "Z")
+    ),
+    legend = list(title = list(text = "<b>Species</b>"))
   )
 
-# Assign frames explicitly to the plotly object
-p$x$frames <- frames
-
-# Animation options to smooth it out
-p <- p %>%
-  animation_opts(
-    frame = 50,
-    transition = 0,
-    redraw = TRUE,
-    easing = "linear",
-    mode = "immediate"
-  )
-
-p
-
+# Step 4: Add description as an HTML caption below the plot
+tagList(
+  plot_3d,
+  HTML("
+    <div style='margin-top: 1em; font-size: 14px; line-height: 1.4em;'>
+      <strong>Mapping Description:</strong><br>
+      • <b>Bill Length</b> → θ (polar angle, latitude)<br>
+      • <b>Flipper Length</b> → φ (azimuthal angle, longitude)<br>
+      • Radius is constant: <b>r = 1</b><br>
+      • Penguins are plotted on the <b>surface of a unit sphere</b>
+    </div>
+  ")
+)
 
 
 ```
+
+
