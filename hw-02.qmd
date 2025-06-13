@@ -524,6 +524,62 @@ g2a
 </div>
 
 
+
+```{r}
+#| label: label-me-3a
+#| echo: false
+
+# Load the median housing data
+median_housing <- read_csv("data/median-housing.csv") |>
+  rename(date = DATE, price = MSPUS) |>
+  mutate(date = ymd(date))  #
+
+# Custom y-axis breaks (extend past 400,000 to ensure it shows)
+y_breaks <- seq(40000, 440000, by = 40000)
+
+# ADDED: Custom x-axis breaks (exclude endpoints)
+x_breaks <- seq(1965, 2020, by = 5) |> paste0("-01-01") |> ymd()
+
+# Create the visualization
+g3a <- ggplot(median_housing, aes(x = date, y = price)) +
+  geom_line(color = "#4d72e3") +
+  
+  # - REMOVED: Recession shading (geom_rect layer)
+  
+  # - REPLACED: Restrict x-axis and apply custom breaks
+  scale_x_date(
+    breaks = x_breaks,
+    limits = c(ymd("1960-01-01"), ymd("2025-01-01")), # x-limits
+    date_labels = "%Y"                                # format to '2000'
+  ) +
+  
+  # Custom y-axis breaks and formatted labels
+  scale_y_continuous(
+    breaks = y_breaks, 
+    labels = comma_format(),
+    limits = c(0, 400000),     # y-limits
+    expand = c(0, 0)
+  ) +
+  
+  # Axis labels
+  labs(
+    title = "Median Housing Prices in the US\nNot seasonally adjusted",
+    x = "Date", 
+    y = "Dollars",
+    
+    # - Source annotation
+    caption = "Sources: Census; HUD"
+  ) +
+  
+  theme_minimal() +
+  
+  # - Right-align the caption
+  theme(plot.caption = element_text(hjust = 1, size = 9, face = "italic"))
+
+plot(g3a)
+
+```
+
 <div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
 <b>Question #3b</b><br>
 <div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
@@ -531,65 +587,61 @@ g2a
 </div>
 </div>
 
-
-```{r}
-#| label: label-me-3a
-#| echo: false
-
-```
-
-
 ```{r}
 #| label: label-me-3b
 #| echo: false
 
-# Load the median housing data
-median_housing <- read_csv("data/median-housing.csv") |>
-  rename(date = DATE, price = MSPUS) |>
-  mutate(date = ymd(date))  # ✅ CHANGED: Replaced %>% with |>
+# - Load the median housing data - already loaded
+# median_housing <- read_csv("data/median-housing.csv") |>
+#   rename(date = DATE, price = MSPUS) |>
+#   mutate(date = ymd(date))  # mutate to y-m-d format
 
-# Load the recession data
+# - Load the recession data
 recessions <- read_csv("data/recessions.csv") |>
   rename(start = Peak, end = Trough) |>
-  mutate(start = ymd(start), end = ymd(end))  # ✅ CHANGED: Replaced %>% with |>
+  mutate(start = ymd(start), end = ymd(end))  # mutate to y-m-d format
 
-# Custom y-axis breaks (extend past 400,000 to ensure it shows)
+# - Custom y-axis breaks (extend past 400,000 to ensure it shows)
 y_breaks <- seq(40000, 440000, by = 40000)
 
-# ✅ ADDED: Custom x-axis breaks (exclude endpoints)
+# - Custom x-axis breaks (exclude endpoints)
 x_breaks <- seq(1965, 2020, by = 5) |> paste0("-01-01") |> ymd()
 
-# Create the visualization
-g1 <- ggplot(median_housing, aes(x = date, y = price)) +
-  geom_line(color = "steelblue") +
+# - Create the visualization
+g3b <- ggplot(median_housing, aes(x = date, y = price)) +
+  geom_line(color = "#4d72e3") +
   
-  # Recession shading
+  # - Recession shading
   geom_rect(data = recessions, aes(xmin = start, xmax = end, ymin = -Inf, ymax = Inf),
             inherit.aes = FALSE, fill = "gray", alpha = 0.3) +
   
-  # ✅ REPLACED: Restrict x-axis and apply custom breaks
+   # - REPLACED: Restrict x-axis and apply custom breaks
   scale_x_date(
     breaks = x_breaks,
-    limits = c(ymd("1960-01-01"), ymd("2025-01-01")),
+    limits = c(ymd("1960-01-01"), ymd("2025-01-01")),  # - set x-limits
     date_labels = "%Y"
   ) +
   
-  # Custom y-axis breaks and formatted labels
+  #  - Custom y-axis breaks and formatted labels
   scale_y_continuous(
     breaks = y_breaks, 
     labels = comma_format(),
-    limits = c(0, 400000),     # ✅ FIXED: Lower limit now 40,000 instead of 0
+    limits = c(0, 400000),     # - set y-limits
     expand = c(0, 0)
   ) +
   
   # Axis labels
   labs(title = "Median Housing Prices in the US",
-       x = "Date", y = "Dollars") +
+       x = "Date", y = "Dollars",
+       # - Source annotation
+       caption = "Sources: Census; HUD"
+       ) +
   
-  theme_minimal()
+  theme_minimal() +
+  # - Right-align the caption
+  theme(plot.caption = element_text(hjust = 1, size = 9, face = "italic"))
 
-plot(g1)
-
+g3b
 
 ```
 
