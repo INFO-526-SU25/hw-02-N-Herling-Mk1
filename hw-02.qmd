@@ -6,7 +6,9 @@ _due: "Friday-June-13-2025"
 format:
   html:
     embed-resources: true
-toc: true
+    code-fold: true       # enables collapsible code blocks
+    code-tools: true      # optionally adds buttons to show/hide all
+    toc: true
 #custom field '_due', 
 #if you want to show in the document:**Due Date:** {{_due}}
 ---
@@ -49,7 +51,8 @@ pkgs <- c(
   "palmerpenguins",
   "grid",
   "htmltools",
-  "plotly"
+  "plotly",
+  "ggforce"
 )
 
 # - load from the character array/vector
@@ -200,9 +203,9 @@ diagnostics_table |>
 
 ```{r}
 #| label: label-me-1
-#| echo: false
 #| fig-asp: 0.63
 #| fig-width: 7
+#| code-fold: true
 
 
 # =========================================
@@ -433,7 +436,7 @@ combined_diag |>
 
 ```{r}
 #| label: label-me-2a
-#| echo: false
+#| code-fold: true
 #| fig-width: 10
 
 # ====================================
@@ -511,7 +514,7 @@ g2a
 
 ```{r}
 #| label: label-me-2b
-#| echo: false
+#| code-fold: true
 #| fig-width: 10
 
 # ==================================
@@ -649,7 +652,8 @@ combined_diag |>
 
 ```{r}
 #| label: label-me-3a
-#| echo: false
+#| code-fold: true
+
 # Load the median housing data
 # median_housing <- read_csv("data/median-housing.csv") |>
 #   rename(date = DATE, price = MSPUS) |>
@@ -728,8 +732,7 @@ plot(g3a)
 
 ```{r}
 #| label: label-me-3b
-#| echo: false
-#| 
+#| code-fold: true
 
 # Load the median housing data - assumed already loaded elsewhere
 # median_housing <- read_csv("data/median-housing.csv") |> 
@@ -810,7 +813,7 @@ g3b <- ggplot(median_housing, aes(x = date, y = price)) +
 
 # Print plot without warnings
 suppressWarnings(print(g3b))
-#print(g3b)
+
 
 ```
 ::: {.alert-info style="background-color:#FFA07A; color:black; padding:10px; border-radius:5px; display: flex; align-items: center; min-height: 60px;"}
@@ -825,9 +828,10 @@ suppressWarnings(print(g3b))
   </strong>
 </div>
 </div>
+
 ```{r}
 #| label: label-me-3c
-#| echo: false
+#| code-fold: true
 
 # - Load the data (already loadedNo)
 # median_housing <- read_csv("data/median-housing.csv") |>
@@ -928,10 +932,10 @@ suppressWarnings(print(g3c))
 
 ```{r}
 #| label: label-me-4
-#| echo: false
+#| code-fold: true
 
-library(ggplot2)
-library(ggforce)
+# library(ggplot2)
+# library(ggforce)
 
 # Define Target's signature red color
 target_red <- "#e82118"
@@ -983,7 +987,7 @@ plot(g1)
 
 ```{r}
 #| label: label-me-5a
-#| echo: false
+#| code-fold: true
 
 # Load necessary libraries
 
@@ -1012,7 +1016,7 @@ g5a
 </div>
 
 ```{r}
-#| echo: false
+#| code-fold: true
 #| label: label-me-5b
 
 
