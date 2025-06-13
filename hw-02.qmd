@@ -1007,7 +1007,7 @@ g5a
 <b>Question #5</b><br>
 <div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
   <strong><br>The ultimate goal is the ugliest possible plot, and the sky is the limit!<br>
-  Snakes on a plan? No. Penguins on a Sphere!</strong>
+  Snakes on a plane? No. Penguins on a Sphere!</strong>
 </div>
 </div>
 
