@@ -781,7 +781,8 @@ g3b <- ggplot(median_housing, aes(x = date, y = price)) +
   labs(
     title = "Median sales price of houses sold in the United States\nNot seasonally adjusted",
     y = "Dollars",
-    x = "Shaded areas indicate U.S. recessions"
+    x = "Shaded areas indicate U.S. recessions",
+    caption = "Source: Census; HUD"
   ) +
 
   theme_minimal() +
