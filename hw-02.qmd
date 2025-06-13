@@ -649,6 +649,61 @@ g3b
 #| label: label-me-3c
 #| echo: false
 
+# - Load the data (already loaded)
+# median_housing <- read_csv("data/median-housing.csv") |>
+#   rename(date = DATE, price = MSPUS) |>
+#   mutate(date = ymd(date))
+
+# - Filter to 2019 and 2020 only, keeping quarterly points
+quarter_dates <- seq(ymd("2019-01-01"), ymd("2020-10-01"), by = "3 months")
+median_housing_q <- median_housing |>
+  filter(date %in% quarter_dates)
+
+# - Define quarter labels
+quarter_labels <- rep(c("Q1", "Q2", "Q3", "Q4"), times = 2)
+
+# - Define year sub-labels (x-axis)
+year_labels <- c("", "", "2019", "", "", "", "2020", "")
+
+#===============
+# - Plot data
+#===============
+g3c <- ggplot(median_housing_q, aes(x = date, y = price)) +
+  geom_line(color = "#4d72e3") +
+  geom_point(shape = 1, size = 2, color = "#4d72e3") +  # Open circles
+  
+  scale_x_date(
+    breaks = quarter_dates,
+    labels = quarter_labels,
+    limits = c(ymd("2019-01-01"), ymd("2020-10-01")) # - sets 'quarters' to graph
+  ) +
+  
+  scale_y_continuous(
+    breaks = seq(300000, 360000, by = 20000),
+    labels = comma_format(),
+    limits = c(300000, 360000),
+    expand = c(0, 0)
+  ) +
+  
+  labs(
+    title = "Median sales price of houses sold in the United States\nNot seasonally adjusted",
+    x = NULL,
+    y = "Dollars",
+    caption = "Sources: Census; HUD"
+  ) +
+  
+  theme_minimal() +
+  theme(
+    plot.caption = element_text(hjust = 1, size = 9, face = "italic"),
+    axis.text.x = element_text(margin = margin(t = 10))  # space for sublabels
+  ) +
+  
+  # - Add custom sublabels below the x-axis - set (x,y) coords of labels
+  annotate("text", x = quarter_dates, y = -20000, label = year_labels, size = 3.5)
+
+# - Plot
+plot(g3c)
+
 ```
 
 ## 4 - Expect More. Plot More.
