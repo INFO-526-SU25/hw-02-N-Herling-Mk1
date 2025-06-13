@@ -46,7 +46,8 @@ pkgs <- c(
   "ggthemes",
   "ggplot2",
   "kableExtra",
-  "palmerpenguins"
+  "palmerpenguins",
+  "grid"
 )
 
 # - load from the character array/vector
@@ -113,16 +114,23 @@ knitr::opts_chunk$set(
 > ```geom_density_ridges()``` function from the ```ggridges``` package to make a ridge plot of Airbnb review scores of Edinburgh neighborhoods. The neighborhoods should be ordered by their median review scores. The data can be found in the ```dsbox``` package, and it’s called ```edibnb```. Also include an interpretation for your visualization. You should review feedback from your Homework 1 to make sure you capture anything you may have missed previously.
 > </div>
 
+<details>
 
+<summary>Data Analysis - Q1</summary>
 ```{r}
-#| label: label-me-1
+#| label: label-me-1_data_table
 #| echo: false
 #| fig-asp: 0.63
 #| fig-width: 7
-
+#--------------------------------------->
+# - A way to 
+# 1. get my hw done
+# 2. supress warnings
+# 3. understand the contents of my data.
 # =======================================
 # Diagnostics Summary Table Preparation
 # =======================================
+#--------------------------------------->
 
 # Data Type
 data_type <- class(edibnb$review_scores_rating)
@@ -171,7 +179,8 @@ diagnostics_table <- tibble::tibble(
   )
 )
 
-# Print the diagnostics table with styled caption and highlighted row
+
+# - Print the diagnostics table with styled caption and highlighted row
 diagnostics_table |>
   kable(
     caption = "<span style='font-weight:bold; font-size:1.2em;'>Table 1. Diagnostic Summary for <code>review_scores_rating</code> (edibnb data set)</span>",
@@ -179,13 +188,24 @@ diagnostics_table |>
   ) |>
   kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) |>
   row_spec(
-    which(diagnostics_table$Metric == "Missing Values"),   # 🔧 Highlight "Missing Values" row
-    background = "#fff9c4"  # 🔧 Light yellow
+    which(diagnostics_table$Metric == "Missing Values"), #-Highlight "Missing Values" row
+    background = "#fff9c4"  # - Light yellow
   )
 
-# =======================================
+```
+</details>
+
+
+```{r}
+#| label: label-me-1
+#| echo: false
+#| fig-asp: 0.63
+#| fig-width: 7
+
+
+# =========================================
 # Visualization: Ridge Plot by Neighborhood
-# =======================================
+# =========================================
 
 # - Filter out rows with NA in neighbourhood or review_scores_rating
 edibnb_clean <- edibnb |>
@@ -207,8 +227,6 @@ mean_scores <- edibnb_clean |>
   summarize(mean_score = mean(review_scores_rating, na.rm = TRUE))
 
 # ==== Modified plot: add geom_text for mean scores offset to the right ====
-# Create a named vector of colors for neighborhoods
-neighborhood_colors <- setNames(viridis::viridis(length(levels(edibnb_clean$neighbourhood))), levels(edibnb_clean$neighbourhood))
 
 # - Get the first and last neighborhood (lowest & highest median)
 low_neigh <- levels(edibnb_clean$neighbourhood)[1]
@@ -217,15 +235,20 @@ high_neigh <- levels(edibnb_clean$neighbourhood)[length(levels(edibnb_clean$neig
 # - Maximum x-position for annotation
 max_annot_x <- max(mean_scores$mean_score, na.rm = TRUE) + 25
 
+# Create a named vector of colors for neighborhoods - color for the envelopes.
+neighborhood_colors <- setNames(viridis::viridis(length(levels(edibnb_clean$neighbourhood))), levels(edibnb_clean$neighbourhood))
+
+
 #===============
 # Make the plot
 #===============
 g1 <- ggplot(edibnb_clean, aes(x = review_scores_rating, y = neighbourhood)) +
-  geom_density_ridges(
+  geom_density_ridges(         # - use geom_density_ridges 
     aes(color = neighbourhood),
-    fill = "cornsilk4",
+    fill = "cornsilk4",       # - fill in the area under the curve
     alpha = 0.7,
-    scale = 1.2,
+    scale = 2.0,              # - this makes the ridges 'larger' on the plotted area.
+    bandwidth = 1,  # you can adjust this value as needed
     show.legend = FALSE
   ) +
   geom_point(
@@ -281,7 +304,7 @@ g1 <- ggplot(edibnb_clean, aes(x = review_scores_rating, y = neighbourhood)) +
     color = neighborhood_colors[[high_neigh]]
   ) +
   scale_x_continuous(name = "Review Scores Rating", limits = c(0, 150)) +
-  scale_color_manual(
+  scale_color_manual(       # - adds color to the curve envelopes..
     name = "Legend",
     values = c(neighborhood_colors, "Mean Score" = "black"),
     breaks = "Mean Score",
@@ -309,19 +332,24 @@ g1 <- ggplot(edibnb_clean, aes(x = review_scores_rating, y = neighbourhood)) +
 g1
 
 ```
+
 <div style="background-color:#e0e0e0; margin:15px; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
   <strong><br>Interpretation</strong>
-  The graph (`Distribution of Airbnb Review Scores by Edinburgh Neighborhood`) displays the distribution of Airbnb review scores across Edinburgh neighborhoods using ridgeline plots, with each neighborhood’s mean score marked by a diamond. The mean review scores are generally high, ranging from about 93.9 to 95.9. Some neighborhoods, like Morningside and Bruntsfield, show slightly higher average scores. The variation in score spread highlights differences in review consistency between neighborhoods, making it easier to compare where listings tend to receive better feedback.
+  The graph (`Distribution of Airbnb Review Scores by Edinburgh Neighborhood`) displays the distribution of Airbnb review scores across Edinburgh neighborhoods using ridgeline plots, with each neighborhood’s mean score marked by a diamond (via double encoding). The mean review scores are generally high, ranging from about 93.9 to 95.9, on a scale of 0-100. Some neighborhoods, like Morningside and Bruntsfield, show slightly higher average scores. The variation in score spread highlights differences in review consistency between neighborhoods, making it easier to compare where listings tend to receive better feedback.
 </div>
 ## 2 - Foreign Connected PACs
 <div style="background-color:#f0f0f0; margin:15px; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
 <b>Question #2a</b><br>
 <div style="background-color:#e0e0e0; padding:2px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
-  <strong><br>Contributions to US political parties from UK-connected PACs</strong>
+  <strong><br>Make a graph: Contributions to US political parties from UK-connected PACs.</strong>
 </div>
 </div>
+
+<details>
+
+<summary>Data Analysis - Q2</summary>
 ```{r}
-#| label: label-me-2a
+#| label: label-me-2_table
 #| echo: false
 #| fig-width: 10
 
@@ -334,31 +362,83 @@ options(readr.show_col_types = FALSE)
 
 list_of_files <- fs::dir_ls(path = "data", regexp = "Foreign Connected PAC")
 
-pac <- read_csv(list_of_files, id = "year") |> 
+# - Read and clean data
+list_of_files <- fs::dir_ls(path = "data", regexp = "Foreign Connected PAC")
+
+# - use janitor package clean_names()
+pac <- read_csv(list_of_files, id = "year") |>
   clean_names() |>
-  
-  # Extract year from filename
   mutate(year = str_extract(year, "\\d{4}(?=\\.csv$)") |> as.integer()) |>
-  
-  # Split 'country_of_origin_parent_company' into 'country' and 'parent_company'
   separate(country_of_origin_parent_company,
            into = c("country", "parent_company"),
-           sep = "/", 
-           fill = "right", 
-           extra = "merge") |>
-  
-  # Remove $ and , from numeric columns and convert to numeric
+           sep = "/", fill = "right", extra = "merge") |>
   mutate(across(c(dems, repubs), ~ as.numeric(str_replace_all(., "[\\$,]", "")))) |>
-  
-  # Keep only needed columns
   select(year, pac_name_affiliate, country, parent_company, dems, repubs)
 
+# - Function to create diagnostic summary
+generate_diagnostics_table <- function(vec, var_name) {
+  summary_stats <- summary(vec)
+  missing_count <- sum(is.na(vec))
+  q1 <- quantile(vec, 0.25, na.rm = TRUE)
+  q3 <- quantile(vec, 0.75, na.rm = TRUE)
+  iqr <- q3 - q1
+  lower_bound <- q1 - 1.5 * iqr
+  upper_bound <- q3 + 1.5 * iqr
+  outliers <- vec[!is.na(vec) & (vec < lower_bound | vec > upper_bound)]
+  
+  tibble::tibble(
+    Variable = var_name,
+    Metric = c(
+      "Data Type", "Min", "1st Quartile", "Median", "Mean", "3rd Quartile", "Max",
+      "Missing Values", "IQR", "Lower Outlier Bound", "Upper Outlier Bound", "Outlier Count"
+    ),
+    Value = c(
+      class(vec),
+      summary_stats[["Min."]],
+      summary_stats[["1st Qu."]],
+      summary_stats[["Median"]],
+      summary_stats[["Mean"]],
+      summary_stats[["3rd Qu."]],
+      summary_stats[["Max."]],
+      missing_count,
+      iqr,
+      lower_bound,
+      upper_bound,
+      length(outliers)
+    )
+  )
+}
 
-# ==================
+# - Combine both diagnostics
+combined_diag <- bind_rows(
+  generate_diagnostics_table(pac$dems, "dems"),
+  generate_diagnostics_table(pac$repubs, "repubs")
+)
+
+# - Render the table
+combined_diag |>
+  kable(
+    caption = "<span style='font-weight:bold; font-size:1.2em;'>Table 1. Diagnostic Summary for <code>dems</code> and <code>repubs</code></span>",
+    escape = FALSE
+  ) |>
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) |>
+  row_spec(which(combined_diag$Metric == "Missing Values"), background = "#fff9c4")
+```
+</details>
+
+
+
+
+```{r}
+#| label: label-me-2a
+#| echo: false
+#| fig-width: 10
+
+# ====================================
 # Data Wrangle - Pivot and Summarize
-# ==================
+# ===================================
 
-# Pivot data to longer format: create 'party' and 'amount' columns
+# - Pivot data to longer format: create 'party' and 'amount' columns
 pac_long <- pac |>
   pivot_longer(
     cols = c(dems, repubs),
@@ -366,16 +446,16 @@ pac_long <- pac |>
     values_to = "amount"
   ) |>
   
-  # Replace party values with readable labels
+  # - Replace party values with readable labels
   mutate(party = recode(party,
                         "dems" = "Democrat",
                         "repubs" = "Republican"))
 
-# Filter for UK-origin PACs and remove NA values in amount
+# - Filter for UK-origin PACs and remove NA values in amount
 yearly_totals <- pac_long |>
   filter(country == "UK", !is.na(amount)) |>
   
-  # Summarize total contributions by year and party
+  # - Summarize total contributions by year and party
   group_by(year, party) |>
   summarise(amount = sum(amount), .groups = "drop")
 
@@ -403,22 +483,26 @@ g2a <- ggplot(yearly_totals, aes(x = year, y = amount, color = party)) +
     name = "Party"
   ) +
 
-  labs(title = "Contributions to US political parties from UK-connected PACs") +
+  labs(
+    title = "Contributions to US political parties from UK-connected PACs",
+    caption = "Source: OpenSecrets.org"
+    ) +
 
   theme(
-    legend.position.inside = c(0.9, 0.15),           # This may cause clipping warnings
-    axis.title.x = element_text(hjust = 0),   # Align X-axis label left
-    axis.title.y = element_text(hjust = 0)    # Align Y-axis label left
+    legend.position.inside = c(0.9, 0.15),    # - This may cause clipping warnings
+    axis.title.x = element_text(hjust = 0),   # - Align X-axis label left
+    axis.title.y = element_text(hjust = 0),   # - Align Y-axis label left
+    plot.caption = element_text(hjust = 1, size = 12)
   )
 
-# Show the plot
+# - Show the plot
 g2a
 
 ```
-<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
+<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB; margin:20px">
 <b>Question #2b</b><br>
-<div style="background-color:#e0e0e0; padding:2px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
-  <strong><br>Contributions to US political parties from Switzerland-connected PACs</strong>
+<div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
+  <strong><br>Make a graph: Contributions to US political parties from non-UK-connected PACs. <br>Let's pick Switzerland.</strong>
 </div>
 </div>
 
@@ -428,47 +512,10 @@ g2a
 #| echo: false
 #| fig-width: 10
 
-# - list_of_files already exists from above.
-pac_2 <- read_csv(list_of_files, id = "year") |> 
-  clean_names() |>
-  
-  # Extract year from filename
-  mutate(year = str_extract(year, "\\d{4}(?=\\.csv$)") |> as.integer()) |>
-  
-  # Split 'country_of_origin_parent_company' into 'country' and 'parent_company'
-  separate(country_of_origin_parent_company,
-           into = c("country", "parent_company"),
-           sep = "/", 
-           fill = "right", 
-           extra = "merge") |>
-  
-  # Remove $ and , from numeric columns and convert to numeric
-  mutate(across(c(dems, repubs), ~ as.numeric(str_replace_all(., "[\\$,]", "")))) |>
-  
-  # Keep only needed columns
-  select(year, pac_name_affiliate, country, parent_company, dems, repubs)
-
-# ==================
-# Export Unique Countries to CSV
-# ==================
-# Summarize contributions by country and party
-# country_party_totals <- pac_2 |>
-#   pivot_longer(cols = c(dems, repubs), names_to = "party", values_to = "amount") |>
-#   filter(!is.na(country), !is.na(amount)) |>
-#   group_by(country, party) |>
-#   summarise(amount = sum(amount), .groups = "drop") |>
-#   pivot_wider(names_from = party, values_from = amount, values_fill = 0) |>
-#   mutate(total = dems + repubs) |>
-#   arrange(desc(total))
-# 
-# # Write to CSV
-# write_csv(country_party_totals, "country_contributions_summary.csv")
-
-# ==================
+# ==================================
 # Data Wrangle - Pivot and Summarize
-# ==================
-
-pac_long <- pac_2 |>
+# ==================================
+pac_long <- pac |>
   pivot_longer(
     cols = c(dems, repubs),
     names_to = "party",
@@ -516,26 +563,103 @@ g2a
 ```
 
 ## 3 - Median housing prices in the US
-<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
+<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB; margin: 20px">
 <b>Question #3a</b><br>
 <div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
-  <strong><br>Put the question here</strong>
+  <strong><br>Re-create the graph: `Median Housing Prices in the US - not seasonally adjusted`</strong>
 </div>
 </div>
 
 
+<details>
+
+<summary>Data Analysis - Q3</summary>
+```{r}
+#| label: label-me-3_table
+#| echo: false
+
+# Load median housing data - rename the variables as 'date' and 'price'
+median_housing <- read_csv("data/median-housing.csv") |>
+  rename(date = DATE, price = MSPUS) |>
+  mutate(date = lubridate::ymd(date))
+
+# Load recession data
+recessions <- read_csv("data/recessions.csv") |>
+  rename(start = Peak, end = Trough) |>
+  mutate(start = lubridate::ymd(start), end = lubridate::ymd(end))
+
+# Prepare diagnostics for median housing
+mh_col_types <- sapply(median_housing, class)
+mh_missing <- sapply(median_housing, function(x) sum(is.na(x)))
+mh_price_summary <- summary(median_housing$price)
+mh_date_range <- range(median_housing$date, na.rm = TRUE)
+
+mh_diag <- tibble(
+  Dataset = "median_housing",
+  Metric = c("date - Data Type", "price - Data Type", 
+             "date - Missing Values", "price - Missing Values",
+             "price - Min", "price - 1st Quartile", "price - Median", "price - Mean",
+             "price - 3rd Quartile", "price - Max",
+             "date - Range Start", "date - Range End"),
+  Value = c(mh_col_types["date"], mh_col_types["price"],
+            mh_missing["date"], mh_missing["price"],
+            mh_price_summary["Min."], mh_price_summary["1st Qu."], mh_price_summary["Median"], mh_price_summary["Mean"],
+            mh_price_summary["3rd Qu."], mh_price_summary["Max."],
+            as.character(mh_date_range[1]), as.character(mh_date_range[2]))
+)
+
+# Prepare diagnostics for recessions
+recess_col_types <- sapply(recessions, class)
+recess_missing <- sapply(recessions, function(x) sum(is.na(x)))
+recess_start_range <- range(recessions$start, na.rm = TRUE)
+recess_end_range <- range(recessions$end, na.rm = TRUE)
+
+recess_diag <- tibble(
+  Dataset = "recessions",
+  Metric = c("start - Data Type", "end - Data Type",
+             "start - Missing Values", "end - Missing Values",
+             "start - Range Start", "start - Range End",
+             "end - Range Start", "end - Range End"),
+  Value = c(recess_col_types["start"], recess_col_types["end"],
+            recess_missing["start"], recess_missing["end"],
+            as.character(recess_start_range[1]), as.character(recess_start_range[2]),
+            as.character(recess_end_range[1]), as.character(recess_end_range[2]))
+)
+
+# Combine the two diagnostics
+combined_diag <- bind_rows(mh_diag, recess_diag)
+
+# Print combined diagnostics table
+combined_diag |>
+  kable(
+    caption = "Combined Diagnostic Summary for Median Housing and Recession Data",
+    col.names = c("Dataset", "Metric", "Value"),
+    escape = FALSE
+  ) |>
+  kable_styling(full_width = FALSE, bootstrap_options = c("striped", "hover")) |>
+  row_spec(which(combined_diag$Metric %in% c("date - Missing Values", "price - Missing Values", 
+                                            "start - Missing Values", "end - Missing Values")),
+           background = "#fff9c4")  # Highlight missing values rows
+
+
+```
+</details>
 
 ```{r}
 #| label: label-me-3a
 #| echo: false
-
 # Load the median housing data
-median_housing <- read_csv("data/median-housing.csv") |>
-  rename(date = DATE, price = MSPUS) |>
-  mutate(date = ymd(date))  #
+# median_housing <- read_csv("data/median-housing.csv") |>
+#   rename(date = DATE, price = MSPUS) |>
+#   mutate(date = ymd(date))  #
+# 
+# # - Load the recession data
+# recessions <- read_csv("data/recessions.csv") |>
+#   rename(start = Peak, end = Trough) |>
+#   mutate(start = ymd(start), end = ymd(end))  # mutate to y-m-d format
 
 # Custom y-axis breaks (extend past 400,000 to ensure it shows)
-y_breaks <- seq(40000, 440000, by = 40000)
+y_breaks <- seq(0, 440000, by = 40000)
 
 # ADDED: Custom x-axis breaks (exclude endpoints)
 x_breaks <- seq(1965, 2020, by = 5) |> paste0("-01-01") |> ymd()
@@ -549,7 +673,7 @@ g3a <- ggplot(median_housing, aes(x = date, y = price)) +
   # - REPLACED: Restrict x-axis and apply custom breaks
   scale_x_date(
     breaks = x_breaks,
-    limits = c(ymd("1960-01-01"), ymd("2025-01-01")), # x-limits
+    limits = c(ymd("1963-01-01"), ymd("2021-04-01")), # x-limits
     date_labels = "%Y"                                # format to '2000'
   ) +
   
@@ -563,10 +687,9 @@ g3a <- ggplot(median_housing, aes(x = date, y = price)) +
   
   # Axis labels
   labs(
-    title = "Median Housing Prices in the US\nNot seasonally adjusted",
-    x = "Date", 
+    title = "Median sales price of houses sold in the United States\nNot seasonally adjusted",
     y = "Dollars",
-    
+    x = NULL,
     # - Source annotation
     caption = "Sources: Census; HUD"
   ) +
@@ -574,82 +697,136 @@ g3a <- ggplot(median_housing, aes(x = date, y = price)) +
   theme_minimal() +
   
   # - Right-align the caption
-  theme(plot.caption = element_text(hjust = 1, size = 9, face = "italic"))
+  theme(
+    
+    plot.title = element_text(
+      hjust = 0,
+      margin = margin(b=15,l=-50,r=0)   # - control margins of plot title.
+      ),           # Align left
+    plot.caption = element_text(hjust = 1, size = 9, face = "italic"),
+    plot.margin = margin(t = 5, r = 0, b = 10, l = 30),  # Increase left margin to push plot body right
+
+    panel.grid.major.x = element_blank(),  # Remove major vertical grid lines
+    panel.grid.minor.x = element_blank(),  # Remove minor vertical grid lines
+    panel.grid.major.y = element_line(),   # Keep major horizontal grid lines
+    panel.grid.minor.y = element_blank()   # Remove minor horizontal grid lines
+    )
 
 plot(g3a)
 
 ```
 
-<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
+<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB; margin: 20px">
 <b>Question #3b</b><br>
 <div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
-  <strong><br>Put the question here</strong>
+  <strong><br>• Identify recessions that happened during the time frame of the median_housing dataset. Do this by adding a new variable to recessions that takes the value TRUE if the recession happened during this time frame and FALSE if not.<br>• Now recreate the following visualization. The shaded areas are recessions that happened during the time frame of the median_housing dataset. Hint: The shaded areas are "behind" the line.
+  </strong>
 </div>
 </div>
 
 ```{r}
 #| label: label-me-3b
 #| echo: false
+#| 
 
-# - Load the median housing data - already loaded
-# median_housing <- read_csv("data/median-housing.csv") |>
-#   rename(date = DATE, price = MSPUS) |>
-#   mutate(date = ymd(date))  # mutate to y-m-d format
+# Load the median housing data - assumed already loaded elsewhere
+# median_housing <- read_csv("data/median-housing.csv") |> 
+#   rename(date = DATE, price = MSPUS) |> 
+#   mutate(date = ymd(date)) 
 
-# - Load the recession data
-recessions <- read_csv("data/recessions.csv") |>
-  rename(start = Peak, end = Trough) |>
-  mutate(start = ymd(start), end = ymd(end))  # mutate to y-m-d format
+# Load the recession data
+recessions <- read_csv("data/recessions.csv") |> 
+  rename(start = Peak, end = Trough) |> 
+  mutate(start = ymd(start), end = ymd(end)) 
 
-# - Custom y-axis breaks (extend past 400,000 to ensure it shows)
-y_breaks <- seq(40000, 440000, by = 40000)
+# Custom y-axis breaks (extend past 400,000 to ensure it shows)
+y_breaks <- seq(0, 440000, by = 40000)
 
-# - Custom x-axis breaks (exclude endpoints)
-x_breaks <- seq(1965, 2020, by = 5) |> paste0("-01-01") |> ymd()
+# Custom x-axis breaks (exclude endpoints)
+x_breaks <- seq(1965, 2020, by = 5) |> 
+  paste0("-01-01") |> 
+  ymd()
 
-# - Create the visualization
+# Create the visualization
 g3b <- ggplot(median_housing, aes(x = date, y = price)) +
   geom_line(color = "#4d72e3") +
-  
-  # - Recession shading
-  geom_rect(data = recessions, aes(xmin = start, xmax = end, ymin = -Inf, ymax = Inf),
-            inherit.aes = FALSE, fill = "gray", alpha = 0.3) +
-  
-   # - REPLACED: Restrict x-axis and apply custom breaks
+
+  # Recession shading
+  geom_rect(
+    data = recessions,
+    aes(xmin = start, xmax = end, ymin = -Inf, ymax = Inf),
+    inherit.aes = FALSE,
+    fill = "gray",
+    alpha = 0.3
+  ) +
+
+  # Restrict x-axis and apply custom breaks
   scale_x_date(
     breaks = x_breaks,
-    limits = c(ymd("1960-01-01"), ymd("2025-01-01")),  # - set x-limits
+    limits = c(ymd("1961-01-01"), ymd("2025-01-01")),
     date_labels = "%Y"
   ) +
-  
-  #  - Custom y-axis breaks and formatted labels
+
+  # Custom y-axis breaks and formatted labels
   scale_y_continuous(
-    breaks = y_breaks, 
+    breaks = y_breaks,
     labels = comma_format(),
-    limits = c(0, 400000),     # - set y-limits
+    limits = c(0, 400000),
     expand = c(0, 0)
   ) +
-  
-  # Axis labels
-  labs(title = "Median Housing Prices in the US",
-       x = "Date", y = "Dollars",
-       # - Source annotation
-       caption = "Sources: Census; HUD"
-       ) +
-  
-  theme_minimal() +
-  # - Right-align the caption
-  theme(plot.caption = element_text(hjust = 1, size = 9, face = "italic"))
 
-g3b
+  # Axis labels
+  labs(
+    title = "Median sales price of houses sold in the United States\nNot seasonally adjusted",
+    y = "Dollars",
+    x = "Shaded areas indicate U.S. recessions"
+  ) +
+
+  theme_minimal() +
+
+  # Customize theme for captions, margins, and grids
+  theme(
+    plot.caption = element_text(hjust = 1, size = 9, face = "italic"),
+    plot.title = element_text(
+      hjust = 0,
+      margin = margin(b = 15, l = -50, r = 0)
+    ),
+    plot.margin = margin(t = 5, r = 0, b = 10, l = 30),
+
+    axis.title.x = element_text(
+    hjust = 1,                # right-align the x-axis label
+    margin = margin(t = 10)   # optional: add some space above the label
+    ),
+    
+    # Grid lines
+    panel.grid.major.x = element_blank(),
+    panel.grid.minor.x = element_blank(),
+    panel.grid.major.y = element_line(),
+    panel.grid.minor.y = element_blank()
+  )
+
+# Print plot without warnings
+suppressWarnings(print(g3b))
+#print(g3b)
 
 ```
+::: {.alert-info style="background-color:#FFA07A; color:black; padding:10px; border-radius:5px; display: flex; align-items: center; min-height: 60px;"}
+**3b-Note:** Some recession rows were intentionally excluded for the purpose of the assignment.
+:::
 
+
+<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB; margin: 20px">
+<b>Question #3c</b><br>
+<div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
+  <strong><br>• Create a subset of `median_housing` dataset from 2019 and 2020. Add two columns: `year` and `quarter`. `year` is the year of the `date` and the `quarter` takes the values of Q1, Q2, Q3, or Q4 based on `date`<br>• Re-create the visualization.
+  </strong>
+</div>
+</div>
 ```{r}
 #| label: label-me-3c
 #| echo: false
 
-# - Load the data (already loaded)
+# - Load the data (already loadedNo)
 # median_housing <- read_csv("data/median-housing.csv") |>
 #   rename(date = DATE, price = MSPUS) |>
 #   mutate(date = ymd(date))
@@ -662,21 +839,36 @@ median_housing_q <- median_housing |>
 # - Define quarter labels
 quarter_labels <- rep(c("Q1", "Q2", "Q3", "Q4"), times = 2)
 
-# - Define year sub-labels (x-axis)
-year_labels <- c("", "", "2019", "", "", "", "2020", "")
+# - Define year sub-labels (x-axis) - best I could figure out how to do
+year_labels <- c("", sprintf("%25s", "2019"), "", "",
+                 "", sprintf("%25s", "2020"), "", "")
+
+# - Combine into single x-axis label with optional sub-labels
+combined_labels <- ifelse(
+  year_labels == "",
+  quarter_labels,
+  paste0(quarter_labels, "\n", year_labels)
+)
 
 #===============
 # - Plot data
 #===============
+
 g3c <- ggplot(median_housing_q, aes(x = date, y = price)) +
-  geom_line(color = "#4d72e3") +
-  geom_point(shape = 1, size = 2, color = "#4d72e3") +  # Open circles
   
-  scale_x_date(
-    breaks = quarter_dates,
-    labels = quarter_labels,
-    limits = c(ymd("2019-01-01"), ymd("2020-10-01")) # - sets 'quarters' to graph
-  ) +
+  # --- Change 1 & 2: Thicken the line and make sure it does not run through points ---
+  geom_line(color = "#4d72e3", linewidth = 1, lineend = "round") +  # Slightly thicker line
+  
+  # --- Change 1: Make circles look 'empty' by drawing points with stroke and fill white ---
+  geom_point(shape = 21, size = 2, color = "#4d72e3", fill = "white", stroke = 1.2) +  # Empty circles
+  
+  # --- Change 3: Limit line to end exactly at Q4 by limiting x-axis ---
+scale_x_date(
+  breaks = quarter_dates,
+  labels = combined_labels,
+  limits = c(ymd("2019-01-01"), ymd("2020-10-01")),  # Already correct range
+  expand = c(0.02, 0.02)  # <<< CHANGE: Prevent extension beyond last Q4 tick
+) +
   
   scale_y_continuous(
     breaks = seq(300000, 360000, by = 20000),
@@ -688,29 +880,45 @@ g3c <- ggplot(median_housing_q, aes(x = date, y = price)) +
   labs(
     title = "Median sales price of houses sold in the United States\nNot seasonally adjusted",
     x = NULL,
-    y = "Dollars",
-    caption = "Sources: Census; HUD"
+    y = "Dollars"
   ) +
   
   theme_minimal() +
   theme(
+    plot.title = element_text(
+      hjust = 0,
+      margin = margin(b=15,l=-50,r=0)   # Control margins of plot title.
+    ),           # Align left
     plot.caption = element_text(hjust = 1, size = 9, face = "italic"),
-    axis.text.x = element_text(margin = margin(t = 10))  # space for sublabels
+    plot.margin = margin(t = 5, r = 0, b = 40, l = 30),  # Increase left margin to push plot body right
+
+    #panel.grid.major.x = element_blank(),  # Remove major vertical grid lines
+    panel.grid.minor.x = element_blank(),  # Remove minor vertical grid lines
+    panel.grid.major.y = element_line(),   # Keep major horizontal grid lines
+    #panel.grid.minor.y = element_blank(),   # Remove minor horizontal grid lines 
+    
   ) +
-  
-  # - Add custom sublabels below the x-axis - set (x,y) coords of labels
-  annotate("text", x = quarter_dates, y = -20000, label = year_labels, size = 3.5)
+  # --- CHANGE: Use annotation_custom to add year labels below x-axis ---
+# Add year labels between Q2 and Q3 using annotate()
+annotate("text", x = ymd("2019-05-16"), y = 298000, label = "2019", size = 3.5) +
+annotate("text", x = ymd("2020-05-16"), y = 298000, label = "2020", size = 3.5)
+
 
 # - Plot
-plot(g3c)
+suppressWarnings(print(g3c))
+
 
 ```
+::: {.alert-info style="background-color:#FFA07A; color:black; padding:10px; border-radius:5px; display: flex; align-items: center; min-height: 60px;"}
+**3c-Note:** Some recession rows were intentionally excluded for the purpose of the assignment.
+:::
+
 
 ## 4 - Expect More. Plot More.
 <div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB; height:auto">
 <b>Question #4</b><br>
 <div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
-  <strong><br>Recreate the Target LOGO.<br>Describe steps..<br>(see code comments)</strong>
+  <strong><br>Recreate the Target LOGO.<br>Describe steps..<br>(see code comments) <br>1. make inner dot<br>2. Make outer ring <br>3. Make 'Target' use '[R]' symbol<br>4. Piece it all together.</strong>
   
 </div>
 </div>
@@ -763,7 +971,7 @@ plot(g1)
 
 ```
 ## 5 - Mirror, mirror on the wall, who’s the ugliest of them all?
-<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB;">
+<div style="background-color:#f0f0f0; padding:10px; border-radius:5px; border:1px solid #87CEEB; margin:20px">
 <b>Question #5</b><br>
 <div style="background-color:#e0e0e0; padding:10px; border-radius:5px; border:1px solid #16DB65; display:flex; align-items:center; justify-content:center; height:auto;">
   <strong><br>Mirror, mirror on the wall, who’s the ugliest of them all? Make a plot of the variables in the penguins dataset from the palmerpenguins package. Your plot should use at least two variables, but more is fine too. First, make the plot using the default theme and color scales. Then, update the plot to be as ugly as possible. You will probably want to play around with theme options, colors, fonts, etc. The ultimate goal is the ugliest possible plot, and the sky is the limit!</strong>
@@ -782,7 +990,7 @@ penguins_clean <- na.omit(penguins)
 g5a <- ggplot(data = penguins_clean, aes(x = bill_length_mm, y = flipper_length_mm, color = species)) +
   geom_point() +
   labs(
-    title = "Bill Length vs Flipper Length by Species",
+    title = "Plot #1 - normal plot\nBill Length vs Flipper Length by Species",
     x = "Bill Length (mm)",
     y = "Flipper Length (mm)"
   )
